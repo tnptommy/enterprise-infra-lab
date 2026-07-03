@@ -57,6 +57,8 @@ When creating each VM later in this guide, point the virtual CD/DVD drive at the
 1. Go to: https://www.microsoft.com/evalcenter/evaluate-windows-server-2025
 2. Register/sign in with a Microsoft account if prompted (required for the Eval Center).
 3. Select the **ISO** download option (not the VHD) and choose the 64-bit edition.
+> <img width="1133" height="530" alt="image" src="https://github.com/user-attachments/assets/e72dafef-ccd4-4eba-b460-db5b5bbdc80d" />
+
 4. Save the file into your shared ISO folder, renamed for clarity, e.g. `WindowsServer2025-Eval.iso`.
 
 > This is the free 180-day Evaluation edition. It is converted to a licensed **Datacenter** edition using `DISM /Set-Edition` and activated against a KMS host during the [Golden Baseline build](./04-golden-baseline-windows-server-2025.md) — do not worry about the evaluation period expiring before that step.
@@ -68,6 +70,7 @@ When creating each VM later in this guide, point the virtual CD/DVD drive at the
 1. Go to: https://www.microsoft.com/software-download/windows11
 2. Under **"Download Windows 11 Disk Image (ISO)"**, select the edition (this guide uses the general consumer/business ISO, which includes Pro) and language.
 3. Click **Download**, save into your shared ISO folder as `Windows11-24H2.iso`.
+> <img width="760" height="422" alt="image" src="https://github.com/user-attachments/assets/15ef871e-d87e-4315-9991-13f49c150a45" />
 
 > The generic Windows 11 ISO from this page lets you choose the edition (Home/Pro/etc.) during setup, or it installs Pro by default depending on the build — either way, the GVLK for Windows 11 Pro used later in this guide (`W269N-WFGWX-YVC9B-4J6C9-T83GX`) will correctly activate a Pro installation regardless of which edition selector appeared during setup.
 
@@ -78,6 +81,8 @@ When creating each VM later in this guide, point the virtual CD/DVD drive at the
 1. Go to: https://rockylinux.org/download
 2. Select **Rocky Linux 10**, architecture **x86_64**.
 3. Choose a mirror close to your location, then download the **Minimal** ISO (not DVD or Boot — Minimal keeps the base install small, matching this guide's Golden Baseline approach of adding only what's needed afterward).
+> <img width="920" height="347" alt="image" src="https://github.com/user-attachments/assets/ec03220a-a49d-4f3e-a094-3e38a12c96c7" />
+
 4. Save into your shared ISO folder as `Rocky-10-x86_64-minimal.iso`.
 5. On the same mirror page, also note the `CHECKSUM` file link (usually `CHECKSUM` or `*-CHECKSUM`) — needed for verification below.
 
