@@ -60,7 +60,7 @@ Install these on the **host machine** before building any VM.
 |---|---|---|
 | VMware Workstation Pro | Hypervisor (latest version) | https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true |
 | PuTTY | SSH client for Linux VMs | https://www.putty.org/ |
-| mRemoteNG | Centralized RDP/SSH connection manager | https://mremoteng.org/ |
+| mRemoteNG | Centralized RDP/SSH connection manager | https://github.com/mRemoteNG/mRemoteNG |
 | WinSCP | SFTP file transfer to Linux VMs | https://winscp.net/ |
 
 Detailed installation steps: [`docs/00-vmware-workstation-installation.md`](./docs/00-vmware-workstation-installation.md), [`docs/03-remote-access-tooling-setup.md`](./docs/03-remote-access-tooling-setup.md)
