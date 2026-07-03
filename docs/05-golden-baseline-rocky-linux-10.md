@@ -46,12 +46,15 @@ These specs are intentionally modest — once cloned for WEB01, MON01, ELK01, or
 ## Step 1 — Create the VM and install Rocky Linux 10 Minimal
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
-2. Guest OS: **Linux**, version **Red Hat Enterprise Linux 9 64-bit** (or the closest RHEL version your VMware Workstation release lists — VMware Workstation does not list Rocky Linux by name, and RHEL is its correct upstream match; the installer works identically regardless of this label).
+2. Guest OS: **Linux**, version **Red Hat Enterprise Linux 10 64-bit** (or the closest RHEL version your VMware Workstation release lists — VMware Workstation does not list Rocky Linux by name, and RHEL is its correct upstream match; the installer works identically regardless of this label).
+> <img width="317" height="314" alt="image" src="https://github.com/user-attachments/assets/64d29e56-da81-412e-91c5-6a18a427ed82" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-Rocky10` and choose a storage location.
 5. Allocate resources per the [VM specification](#vm-specification) table above.
+> <img width="561" height="524" alt="image" src="https://github.com/user-attachments/assets/9e8fe632-9f90-4257-ae17-0245f8a02d28" />
 6. Complete the wizard and power on the VM.
 7. In the Rocky Linux installer (Anaconda), choose **Minimal Install** under Software Selection.
+> <img width="358" height="234" alt="image" src="https://github.com/user-attachments/assets/55934fbe-3836-408a-baec-3bf589ff60b9" />
 8. Under Installation Destination, select the disk and choose **Custom** partitioning, then create the following layout manually:
 
 | Mount point | Size | Filesystem | Notes |
@@ -59,6 +62,8 @@ These specs are intentionally modest — once cloned for WEB01, MON01, ELK01, or
 | `/boot` | 1 GiB | xfs | Standard partition, outside LVM |
 | `/boot/efi` | 200 MiB | EFI System Partition | Only if the VM firmware is UEFI — check **VM → Settings → Options → Advanced → Firmware type** beforehand; skip this row if using BIOS |
 | LVM Volume Group `rl` → Logical Volume `root` | Remaining space | xfs | Mount at `/` |
+
+> <img width="637" height="401" alt="image" src="https://github.com/user-attachments/assets/8d24f1b1-64db-4ba8-9da1-6d5e78645a6a" />
 
 No swap partition is created here deliberately — swap is sized per-VM later (2× that VM's RAM, per the [README's resource table](../README.md#virtual-machine-inventory)) using a swap file, so it isn't locked into the golden baseline's disk layout. Using LVM for the root volume (rather than a plain partition) is what makes disk expansion after cloning straightforward later — see [Cloning this baseline later](#cloning-this-baseline-later).
 
