@@ -123,6 +123,7 @@ Windows Server 2025 does not include .NET Framework 3.5 by default, and — unli
 
 1. With the installation ISO still attached (or re-attach it: **VM → Removable Devices → CD/DVD → Settings → Use ISO image file**), open an elevated PowerShell prompt.
 2. Confirm the ISO's drive letter (commonly `D:`), then run:
+> <img width="841" height="443" alt="image" src="https://github.com/user-attachments/assets/19045ad4-f797-411a-89b3-79eb0b4b6bfc" />
 
 ```powershell
 Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /LimitAccess
