@@ -34,7 +34,7 @@ Pick one folder on the host machine to store all ISOs, and reuse it for every VM
 
 **Windows host example:**
 ```
-D:\ISOs\
+E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs
 ├── WindowsServer2025-Eval.iso
 ├── Windows11-24H2.iso
 └── Rocky-10-x86_64-minimal.iso
@@ -95,10 +95,11 @@ Verifying the SHA256 checksum of every downloaded ISO confirms the file wasn't c
 ### Windows host
 
 ```powershell
-certutil -hashfile "D:\ISOs\WindowsServer2025-Eval.iso" SHA256
-certutil -hashfile "D:\ISOs\Windows11-24H2.iso" SHA256
-certutil -hashfile "D:\ISOs\Rocky-10-x86_64-minimal.iso" SHA256
+certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs\WindowsServer2025-Eval.iso" SHA256
+certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs\Windows11-24H2.iso" SHA256
+certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs\Rocky-10-x86_64-minimal.iso" SHA256
 ```
+> <img width="797" height="168" alt="image" src="https://github.com/user-attachments/assets/897949a6-f9cb-4985-b0d3-ec22c074ed85" />
 
 ### Linux host
 
