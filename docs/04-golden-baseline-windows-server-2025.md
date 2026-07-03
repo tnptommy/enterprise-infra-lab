@@ -136,6 +136,7 @@ Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /Li
 ```powershell
 Get-WindowsFeature -Name NET-Framework-Core
 ```
+> <img width="694" height="77" alt="image" src="https://github.com/user-attachments/assets/9d5235ed-0ce8-4d33-9339-bcfb145fb7f5" />
 
 ---
 
