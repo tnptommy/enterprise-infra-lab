@@ -58,7 +58,7 @@ Install these on the **host machine** before building any VM.
 
 | Software | Purpose | Download |
 |---|---|---|
-| VMware Workstation Pro | Hypervisor (latest version) | https://www.vmware.com/products/workstation-pro.html |
+| VMware Workstation Pro | Hypervisor (latest version) | https://support.broadcom.com/group/ecx/productdownloads?subfamily=VMware%20Workstation%20Pro&freeDownloads=true |
 | PuTTY | SSH client for Linux VMs | https://www.putty.org/ |
 | mRemoteNG | Centralized RDP/SSH connection manager | https://mremoteng.org/ |
 | WinSCP | SFTP file transfer to Linux VMs | https://winscp.net/ |
