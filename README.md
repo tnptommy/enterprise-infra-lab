@@ -1,8 +1,10 @@
 # Enterprise Infra Lab
 
-A self-hosted enterprise infrastructure simulation built on **VMware Workstation**, combining Windows Server (Active Directory, IIS, SQL Server, WSUS) and Rocky Linux (LAMP stack, reverse proxy/load balancing, monitoring, and SIEM/log analytics) into a single cohesive lab environment.
+A free, step-by-step guide for building a self-hosted enterprise infrastructure simulation on **VMware Workstation** — combining Windows Server (Active Directory, IIS, SQL Server, WSUS) and Rocky Linux (LAMP stack, reverse proxy/load balancing, monitoring, and SIEM/log analytics) into a single cohesive lab environment.
 
-This repository is a step-by-step runbook. Every document under [`docs/`](./docs) corresponds to one build phase, listed in the exact order they should be executed.
+This repository exists to help anyone — students, career-changers, or working sysadmins wanting hands-on practice — build the same lab from scratch, using only free/evaluation software and publicly documented tools. Every document under [`docs/`](./docs) corresponds to one build phase, listed in the exact order it should be executed, so you can follow along end to end or jump straight to the section you need.
+
+No prior lab experience is required — just a reasonably capable host machine and the patience to work through each phase in order.
 
 ---
 
@@ -85,14 +87,16 @@ Golden baseline (sysprep'd template) build steps:
 
 All Windows machines in this lab are activated against an **external, online KMS host** (not part of this lab's VM inventory).
 
-| Edition | GVLK | KMS host |
+> **If you're following this guide yourself:** the GVLK keys below are Microsoft's own [publicly documented generic volume license keys](https://learn.microsoft.com/en-us/windows-server/get-started/kms-client-activation-keys) — they only work against a KMS host that already holds a valid Windows Server/volume-licensing agreement, they do not grant a free license on their own. The KMS hostname is specific to this author's environment; replace it with your own organization's KMS host, or use Microsoft's Evaluation edition without activation if you don't have one available.
+
+| Edition | GVLK | KMS host (example — replace with your own) |
 |---|---|---|
 | Windows Server 2025 Datacenter | `D764K-2NDRG-47T6Q-P8T8W-YP6DF` | `kms.srv.crsoo.com:1688` |
 | Windows 11 Pro | `W269N-WFGWX-YVC9B-4J6C9-T83GX` | `kms.srv.crsoo.com:1688` |
 
 Windows Server images are provisioned from the free Evaluation ISO and converted to a retail edition via `DISM /Set-Edition` **before** activation — the full sequence (edition check, edition conversion, connectivity test, activation, verification) is documented in [`docs/04-golden-baseline-windows-server-2025.md`](./docs/04-golden-baseline-windows-server-2025.md).
 
-> The KMS host is external to this lab. All Windows VMs must be able to **resolve** `kms.srv.crsoo.com` and reach it on **TCP 1688**. Once DC01's DNS is in use as the client resolver, ensure a DNS forwarder to a public resolver is configured so KMS activation continues to work after domain join.
+> The KMS host is external to this lab's VM inventory. All Windows VMs must be able to **resolve** the KMS hostname and reach it on **TCP 1688**. Once DC01's DNS is in use as the client resolver, ensure a DNS forwarder to a public resolver is configured so KMS activation continues to work after domain join.
 
 ---
 
@@ -107,6 +111,8 @@ All VMs share a single unified subnet on VMware Workstation's **NAT** network (V
 Using NAT (instead of a separate Host-only network) keeps every VM able to reach the internet (package updates, source downloads, KMS activation) while still being fully routable to each other on the same subnet — no dual-NIC configuration is required.
 
 Full instructions for repointing VMnet8 to this subnet: [`docs/02-network-architecture-planning.md`](./docs/02-network-architecture-planning.md)
+
+> Feel free to substitute your own subnet — `192.168.10.0/24` is simply what this guide uses throughout for consistency between documents. If you change it, update every static IP reference accordingly.
 
 ### IP allocation
 
@@ -206,6 +212,12 @@ Golden baselines (04–05)
 
 ---
 
+## Contributing
+
+Found an error, an outdated link, or a step that doesn't work on a newer release? Issues and pull requests are welcome — this guide is meant to stay useful as software versions change.
+
+---
+
 ## Disclaimer
 
-This repository documents a **personal home lab** for learning purposes only. All IP ranges, hostnames, license keys, and KMS endpoints referenced are lab-specific and not affiliated with, nor representative of, any employer or organization. Do not reuse license keys or KMS endpoints outside of a properly licensed environment you control.
+This repository is a **free, community-facing learning guide** and is not affiliated with, nor endorsed by, Microsoft, Rocky Enterprise Software Foundation, or any other vendor referenced. All IP ranges, hostnames, and KMS endpoints shown are illustrative examples from the author's own environment — substitute your own values when following along. GVLK keys are Microsoft's publicly published generic volume license keys and require a valid, properly licensed KMS host to activate against; this guide does not provide or imply a free Windows license.
