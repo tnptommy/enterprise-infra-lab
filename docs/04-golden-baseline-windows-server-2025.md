@@ -77,6 +77,7 @@ Recent versions of VMware Workstation install VMware Tools automatically — eit
 ```powershell
 Get-Service -Name VMTools
 ```
+> <img width="725" height="199" alt="image" src="https://github.com/user-attachments/assets/bbe24dd9-e6b8-41c2-8861-e3bad0e350dd" />
 If this returns a service in `Running` state, VMware Tools is already installed — skip to [Step 3](#step-3--configure-the-dual-nic-network-adapters).
 
 2. If the service doesn't exist, trigger installation manually:
