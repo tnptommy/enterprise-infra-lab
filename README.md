@@ -33,6 +33,7 @@ This lab reproduces the core building blocks of a small-to-medium enterprise IT 
 - **Database & application services** — Microsoft SQL Server, IIS
 - **Network intrusion detection** — Suricata (NIDS)
 - **Monitoring & SIEM** — Zabbix, Wazuh, Elastic Stack (ELK), OpenSearch
+- **Identity federation & SSO** — Keycloak, providing single sign-on across every monitoring/log dashboard (Kibana, OpenSearch Dashboards, Wazuh Dashboard, Zabbix Frontend)
 - **Automation & hardening** — scripted backups, firewall/SELinux hardening, scheduled maintenance
 
 The goal is hands-on, reproducible practice with the full lifecycle of enterprise systems administration: provisioning, configuration, security hardening, monitoring, and automation — all documented as a public runbook.
@@ -130,7 +131,7 @@ Two separate naming conventions are used throughout this lab:
 | DC01 | `DC01_10.10` | `DC01` | `192.168.10.10` | Active Directory, DNS, DHCP, NTP |
 | WINAPP01 | `WINAPP01_10.15` | `WINAPP01` | `192.168.10.15` | IIS, SQL Server, WSUS |
 | WEB01 | `WEB01_10.21` | `WEB01` | `192.168.10.21` | Nginx (reverse proxy / load balancer), Apache × 2, MariaDB, Suricata |
-| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh |
+| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh, Keycloak (SSO) |
 | ELK01 | `ELK01_10.50` | `ELK01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
 | LOG02 | `LOG02_10.51` | `LOG02` | `192.168.10.51` | OpenSearch, OpenSearch Dashboards |
 | CLIENT01 | `CLIENT01_dhcp` | `CLIENT01` | DHCP (`192.168.10.100`–`200` pool) | Domain-joined test client |
@@ -145,10 +146,10 @@ Two separate naming conventions are used throughout this lab:
 | WINAPP01 | 4 | 8–10 GB | 60 GB | 40 GB *(SQL Server data)* | 100 GB | IIS, SQL Server, WSUS |
 | CLIENT01 | 2 | 2–4 GB | 40 GB | — | 40 GB | Domain-joined test client |
 | WEB01 | 4–6 | 8 GB | 50 GB *(30 OS + 20 swap)* | 20 GB *(LVM demo)* | 70 GB | Nginx LB, Apache × 2, MariaDB, Suricata |
-| MON01 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Zabbix/Wazuh data)* | 80 GB | Zabbix, Wazuh |
+| MON01 | 4 | 10 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Zabbix/Wazuh data)* | 80 GB | Zabbix, Wazuh, Keycloak (SSO for all dashboards) |
 | ELK01 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Elasticsearch index data)* | 80 GB | Elasticsearch, Logstash, Kibana |
 | LOG02 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(OpenSearch data)* | 80 GB | OpenSearch, OpenSearch Dashboards |
-| **Total** | **24–28** | **46–52 GB** | | | **~550 GB** | |
+| **Total** | **24–28** | **48–54 GB** | | | **~550 GB** | |
 
 **Notes:**
 - Swap size follows a fixed rule of **2× RAM**, rounded up to the nearest 10 GB.
@@ -182,6 +183,7 @@ Documents are numbered in the order they must be executed. Later phases assume e
 | 16 | [`agent-deployment-all-vms.md`](./docs/16-agent-deployment-all-vms.md) | Monitoring rollout |
 | 17 | [`secops-firewall-selinux-hardening.md`](./docs/17-secops-firewall-selinux-hardening.md) | Security hardening |
 | 18 | [`automation-backup-scheduling.md`](./docs/18-automation-backup-scheduling.md) | Automation |
+| 19 | [`keycloak-sso-integration.md`](./docs/19-keycloak-sso-integration.md) | Identity federation & SSO |
 
 ### Dependency summary
 
@@ -207,6 +209,12 @@ Golden baselines (04–05)
                 │
                 ▼
         Automation & backup (18)
+                │
+                ▼
+        Keycloak SSO integration (19)
+        (requires Kibana, OpenSearch Dashboards,
+         Wazuh Dashboard, and Zabbix Frontend to
+         already exist)
 ```
 
 ---
