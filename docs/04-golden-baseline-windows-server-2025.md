@@ -128,6 +128,7 @@ Windows Server 2025 does not include .NET Framework 3.5 by default, and — unli
 ```powershell
 Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /LimitAccess
 ```
+> <img width="863" height="275" alt="image" src="https://github.com/user-attachments/assets/d004d72f-d85d-403c-af3e-2698e3f67294" />
 
 3. Confirm the operation completes with **"The operation completed successfully."**
 4. Verify:
