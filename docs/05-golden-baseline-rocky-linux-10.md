@@ -47,7 +47,7 @@ These specs are intentionally modest — once cloned for WEB01, MON01, ELK01, or
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
 2. Guest OS: **Linux**, version **Red Hat Enterprise Linux 10 64-bit** (or the closest RHEL version your VMware Workstation release lists — VMware Workstation does not list Rocky Linux by name, and RHEL is its correct upstream match; the installer works identically regardless of this label).
-> <img width="317" height="314" alt="image" src="https://github.com/user-attachments/assets/64d29e56-da81-412e-91c5-6a18a427ed82" />
+> <img width="524" height="524" alt="image" src="https://github.com/user-attachments/assets/64d29e56-da81-412e-91c5-6a18a427ed82" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-Rocky10` and choose a storage location.
 5. Allocate resources per the [VM specification](#vm-specification) table above.
@@ -83,7 +83,7 @@ Rather than continuing the rest of this build inside the cramped VMware console 
 ```bash
 sudo systemctl status sshd
 ```
-> <img width="409" height="220" alt="image" src="https://github.com/user-attachments/assets/8ec37acc-fad5-4378-8bae-d0c7da177f6e" />
+> <img width="800" height="440" alt="image" src="https://github.com/user-attachments/assets/8ec37acc-fad5-4378-8bae-d0c7da177f6e" />
 
 If it isn't running for any reason:
 
@@ -110,7 +110,7 @@ sudo firewall-cmd --reload
 ```bash
 ip a
 ```
-> <img width="395" height="153" alt="image" src="https://github.com/user-attachments/assets/79b1b8a6-42b5-4ee8-a1c5-7026f2701849" />
+> <img width="800" height="300" alt="image" src="https://github.com/user-attachments/assets/79b1b8a6-42b5-4ee8-a1c5-7026f2701849" />
 
 Note the address shown for the active interface (commonly `ens160` or similar, on VMware's default NAT/DHCP range at this stage).
 
