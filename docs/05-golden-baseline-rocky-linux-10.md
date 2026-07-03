@@ -83,6 +83,8 @@ Rather than continuing the rest of this build inside the cramped VMware console 
 ```bash
 sudo systemctl status sshd
 ```
+> <img width="409" height="220" alt="image" src="https://github.com/user-attachments/assets/8ec37acc-fad5-4378-8bae-d0c7da177f6e" />
+
 If it isn't running for any reason:
 
 ```bash
@@ -94,6 +96,8 @@ sudo systemctl enable --now sshd
 ```bash
 sudo firewall-cmd --list-services
 ```
+> <img width="422" height="52" alt="image" src="https://github.com/user-attachments/assets/29d5283a-8228-4683-909f-d6b9e30e9a85" />
+
 Expect `ssh` in the output. If missing:
 
 ```bash
@@ -106,6 +110,8 @@ sudo firewall-cmd --reload
 ```bash
 ip a
 ```
+> <img width="395" height="153" alt="image" src="https://github.com/user-attachments/assets/79b1b8a6-42b5-4ee8-a1c5-7026f2701849" />
+
 Note the address shown for the active interface (commonly `ens160` or similar, on VMware's default NAT/DHCP range at this stage).
 
 5. From the host machine, open **PuTTY** ([installed in `03-remote-access-tooling-setup.md`](./03-remote-access-tooling-setup.md)), enter that IP address, and connect.
