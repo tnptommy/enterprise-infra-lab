@@ -81,8 +81,14 @@ If this returns a service in `Running` state, VMware Tools is already installed 
 
 2. If the service doesn't exist, trigger installation manually:
    - **VM → Install VMware Tools** in the VMware Workstation menu (this mounts a virtual CD containing the installer).
+
+     > <img width="391" height="296" alt="image" src="https://github.com/user-attachments/assets/6ad9d9c1-f0a2-432b-b3de-8565ed682ac5" />
    - Open the mounted drive in Windows Explorer, run `setup64.exe`.
+
+     > <img width="391" height="294" alt="image" src="https://github.com/user-attachments/assets/96b530bb-239c-4032-ae93-115b903fdfb3" />
    - Click through the wizard with default options → **Install** → **Finish**.
+
+     > <img width="391" height="294" alt="image" src="https://github.com/user-attachments/assets/04f260a2-dab0-4c80-9eda-9e00c0a012d5" />
    - Restart when prompted.
 
 ---
