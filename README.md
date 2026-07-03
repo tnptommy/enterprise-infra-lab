@@ -96,35 +96,43 @@ All Windows machines in this lab are activated against an **external, online KMS
 
 Windows Server images are provisioned from the free Evaluation ISO and converted to a retail edition via `DISM /Set-Edition` **before** activation — the full sequence (edition check, edition conversion, connectivity test, activation, verification) is documented in [`docs/04-golden-baseline-windows-server-2025.md`](./docs/04-golden-baseline-windows-server-2025.md).
 
-> The KMS host is external to this lab's VM inventory. All Windows VMs must be able to **resolve** the KMS hostname and reach it on **TCP 1688**. Once DC01's DNS is in use as the client resolver, ensure a DNS forwarder to a public resolver is configured so KMS activation continues to work after domain join.
+> The KMS host is external to this lab's VM inventory and is reached over the **NAT adapter (NIC 1)**, not the internal `192.168.10.0/24` network. All Windows VMs must be able to **resolve** the KMS hostname and reach it on **TCP 1688** through NAT. Once DC01's DNS is in use as the client resolver, ensure a DNS forwarder to a public resolver is configured so KMS activation continues to work after domain join.
 
 ---
 
 ## Network architecture summary
 
-All VMs share a single unified subnet on VMware Workstation's **NAT** network (VMnet8), re-addressed from its default range to:
+Every VM in this lab uses **two virtual network adapters**:
 
-```
-192.168.10.0/24
-```
+| Adapter | VMware network | Subnet | Purpose |
+|---|---|---|---|
+| NIC 1 | NAT (VMnet8) | VMware's default NAT subnet (unchanged) | Outbound internet access — package updates, source downloads, KMS activation |
+| NIC 2 | Host-only (VMnet1) | `192.168.10.0/24` | Internal lab traffic — inter-VM communication, domain join, DNS, monitoring, all static IPs |
 
-Using NAT (instead of a separate Host-only network) keeps every VM able to reach the internet (package updates, source downloads, KMS activation) while still being fully routable to each other on the same subnet — no dual-NIC configuration is required.
+All static IP addresses and hostnames referenced throughout this guide belong to **NIC 2** (Host-only). NIC 1 (NAT) only needs a working DHCP-assigned address and is otherwise left alone — it exists purely so each VM can reach the internet independently of the internal lab network.
 
-Full instructions for repointing VMnet8 to this subnet: [`docs/02-network-architecture-planning.md`](./docs/02-network-architecture-planning.md)
+Full instructions for configuring both adapters, repointing VMnet1 to `192.168.10.0/24`, and wiring each VM with the correct dual-NIC setup: [`docs/02-network-architecture-planning.md`](./docs/02-network-architecture-planning.md)
 
-> Feel free to substitute your own subnet — `192.168.10.0/24` is simply what this guide uses throughout for consistency between documents. If you change it, update every static IP reference accordingly.
+> Feel free to substitute your own internal subnet — `192.168.10.0/24` is simply what this guide uses throughout for consistency between documents. If you change it, update every static IP reference accordingly.
+
+> Because KMS activation and package downloads happen over NIC 1 (NAT), the KMS hostname and package repositories only need to be reachable through that adapter — not through the internal 192.168.10.0/24 network. If you later add a DNS forwarder on DC01 for domain-joined clients, make sure NAT (NIC 1) remains functional so outbound lookups still resolve.
 
 ### IP allocation
 
-| Host | IP address | Role |
-|---|---|---|
-| DC01 | `192.168.10.10` | Active Directory, DNS, DHCP, NTP |
-| WINAPP01 | `192.168.10.15` | IIS, SQL Server, WSUS |
-| WEB01 | `192.168.10.21` | Nginx (reverse proxy / load balancer), Apache × 2, MariaDB, Suricata |
-| MON01 | `192.168.10.40` | Zabbix, Wazuh |
-| ELK01 | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
-| LOG02 | `192.168.10.51` | OpenSearch, OpenSearch Dashboards |
-| CLIENT01 | DHCP (`192.168.10.100`–`200` pool) | Domain-joined test client |
+Two separate naming conventions are used throughout this lab:
+
+- **VMware Workstation VM name** (the Library display name and `.vmx` folder name) — always `HOST_lastTwoOctets`, using only the **last two octets** of the IP address, e.g. `DC01_10.10` for `192.168.10.10`. This keeps names short while still identifiable at a glance in the Workstation Library without opening the VM.
+- **OS hostname** (set via `hostnamectl` on Linux or `Rename-Computer` on Windows) — just `HOST`, e.g. `DC01`. This is the name used for DNS records, domain join, and everywhere inside the OS itself.
+
+| Host | VMware VM name | OS hostname | IP address | Role |
+|---|---|---|---|---|
+| DC01 | `DC01_10.10` | `DC01` | `192.168.10.10` | Active Directory, DNS, DHCP, NTP |
+| WINAPP01 | `WINAPP01_10.15` | `WINAPP01` | `192.168.10.15` | IIS, SQL Server, WSUS |
+| WEB01 | `WEB01_10.21` | `WEB01` | `192.168.10.21` | Nginx (reverse proxy / load balancer), Apache × 2, MariaDB, Suricata |
+| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh |
+| ELK01 | `ELK01_10.50` | `ELK01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
+| LOG02 | `LOG02_10.51` | `LOG02` | `192.168.10.51` | OpenSearch, OpenSearch Dashboards |
+| CLIENT01 | `CLIENT01_dhcp` | `CLIENT01` | DHCP (`192.168.10.100`–`200` pool) | Domain-joined test client |
 
 ---
 
@@ -208,6 +216,7 @@ Golden baselines (04–05)
 - All shell/PowerShell commands are in **English**, using fenced code blocks.
 - Every piece of software built or installed **from source** includes a direct download link at the point it is first referenced — no undocumented dependencies.
 - File naming follows `NN-topic-name.md`, where `NN` reflects build order, not importance.
+- **VM naming**: the VMware Workstation VM name (Library display name / `.vmx` folder) always follows `HOST_lastTwoOctets`, using only the last two octets of the IP address (e.g. `DC01_10.10` for `192.168.10.10`) so every VM is identifiable at a glance without opening it. The OS-level hostname (set via `hostnamectl` on Linux or `Rename-Computer` on Windows) uses just `HOST` (e.g. `DC01`) — this is the name used for DNS, domain join, and inside the OS itself. Never mix the two.
 - Any VM provisioned with more than one virtual disk has that disk's purpose explicitly labeled in its build document (never a silent capacity-only disk).
 
 ---
