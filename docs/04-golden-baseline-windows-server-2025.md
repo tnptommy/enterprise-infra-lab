@@ -59,10 +59,11 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 > <img width="557" height="521" alt="image" src="https://github.com/user-attachments/assets/8e43be46-1d85-48e2-bd12-b31bfcfc3677" />
 6. Complete the wizard and power on the VM.
 7. In the Windows Setup screen, choose **Windows Server 2025 Standard/Datacenter (Desktop Experience)** — the specific edition selected here doesn't matter much, since [Step 6](#step-6--convert-evaluation-to-datacenter-edition-via-dism-set-edition) converts it explicitly regardless.
-> <img width="510" height="381" alt="image" src="https://github.com/user-attachments/assets/a5fa080c-81c0-487b-a621-6f31b78b2673" />
+> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/a5fa080c-81c0-487b-a621-6f31b78b2673" />
 8. Complete installation: accept the license, choose **Custom install**, select the virtual disk, wait for installation to finish and reboot.
 > <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/4af97627-8e61-4b0e-9c43-0223f0b07671" />
 > <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/3879509a-a058-4ca9-9c3e-abbccc7c035a" />
+> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/17eda97e-d55b-4ca0-a666-affc63472fb1" />
 9. Set a local Administrator password when prompted.
 
 ---
