@@ -36,6 +36,9 @@ To confirm virtualization is active from within the OS before installing anythin
 ```powershell
 Get-ComputerInfo -Property "HyperVRequirementVirtualizationFirmwareEnabled"
 ```
+
+<img width="671" height="144" alt="image" src="https://github.com/user-attachments/assets/ce80aa9e-0643-4c84-b1f4-bc700e2281ac" />
+
 Expect `True`. If `False`, the BIOS/UEFI setting above was not saved correctly.
 
 **Linux:**
