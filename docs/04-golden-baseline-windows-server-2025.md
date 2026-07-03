@@ -149,12 +149,15 @@ The ISO downloaded in [`01-iso-acquisition-and-verification.md`](./01-iso-acquis
 ```powershell
 DISM /Online /Get-CurrentEdition
 ```
+> <img width="406" height="178" alt="image" src="https://github.com/user-attachments/assets/fbf6954b-89dc-4722-bbcd-50e18e46f4e5" />
 
 2. List the editions this installation can convert to:
 
 ```powershell
 DISM /Online /Get-TargetEditions
 ```
+> <img width="395" height="190" alt="image" src="https://github.com/user-attachments/assets/68c3ab90-ee07-4ae0-aabe-be9e334506da" />
+
 Confirm `ServerDatacenter` appears in the list.
 
 3. Convert to Datacenter, supplying the GVLK directly so the edition change and product key are applied together:
