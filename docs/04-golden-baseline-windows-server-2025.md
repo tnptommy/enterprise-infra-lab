@@ -48,7 +48,9 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 ## Step 1 — Create the VM and install Windows Server 2025
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
+> <img width="319" height="315" alt="image" src="https://github.com/user-attachments/assets/dc242a1b-d04a-422d-9617-5cb185554124" />
 2. Guest OS: **Microsoft Windows**, version **Windows Server 2025**.
+> <img width="315" height="314" alt="image" src="https://github.com/user-attachments/assets/cbf446f4-8bf5-4e8d-b45f-6f1277914ae3" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-WinServer2025` and choose a storage location.
 5. Allocate resources per the [VM specification](#vm-specification) table above.
