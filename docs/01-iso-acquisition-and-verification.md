@@ -39,6 +39,7 @@ E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs
 ├── Windows11-24H2.iso
 └── Rocky-10-x86_64-minimal.iso
 ```
+> <img width="703" height="172" alt="image" src="https://github.com/user-attachments/assets/d7b8a96f-02b2-42ec-a8b5-3dca0219280e" />
 
 **Linux host example:**
 ```
