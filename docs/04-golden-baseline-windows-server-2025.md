@@ -77,7 +77,7 @@ Recent versions of VMware Workstation install VMware Tools automatically — eit
 ```powershell
 Get-Service -Name VMTools
 ```
-> <img width="725" height="199" alt="image" src="https://github.com/user-attachments/assets/bbe24dd9-e6b8-41c2-8861-e3bad0e350dd" />
+> <img width="695" height="202" alt="image" src="https://github.com/user-attachments/assets/d78019b7-5b89-494e-95f4-06ef0e9572be" />
 If this returns a service in `Running` state, VMware Tools is already installed — skip to [Step 3](#step-3--configure-the-dual-nic-network-adapters).
 
 2. If the service doesn't exist, trigger installation manually:
@@ -111,6 +111,7 @@ This baseline follows the [dual-interface network design](./02-network-architect
 Windows Update runs over NIC 1 (NAT), which already has internet access.
 
 1. **Settings → Windows Update → Check for updates**.
+> <img width="824" height="344" alt="image" src="https://github.com/user-attachments/assets/d7592aa2-027a-4368-9a94-4e53106cfdcd" />
 2. Install all available updates, rebooting as needed, until "You're up to date" appears.
 3. This step patches known vulnerabilities in the base OS before the image is sealed and reused across every Windows Server VM in this lab.
 
