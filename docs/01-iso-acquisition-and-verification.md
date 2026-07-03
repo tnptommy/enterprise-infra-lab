@@ -99,7 +99,7 @@ certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\I
 certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs\Windows11-24H2.iso" SHA256
 certutil -hashfile "E:\Tom\Virtual Machines\Labs\Enterprise Infrastructure Lab\ISOs\Rocky-10-x86_64-minimal.iso" SHA256
 ```
-> <img width="797" height="168" alt="image" src="https://github.com/user-attachments/assets/897949a6-f9cb-4985-b0d3-ec22c074ed85" />
+> <img width="1235" height="266" alt="image" src="https://github.com/user-attachments/assets/8b50391e-49a4-4d78-adb2-3d6bf8d5d7d8" />
 
 ### Linux host
 
