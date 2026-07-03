@@ -62,6 +62,7 @@ Install these on the **host machine** before building any VM.
 | PuTTY | SSH client for Linux VMs | https://www.putty.org/ |
 | mRemoteNG | Centralized RDP/SSH connection manager | https://github.com/mRemoteNG/mRemoteNG |
 | WinSCP | SFTP file transfer to Linux VMs | https://winscp.net/ |
+| KeePass | Encrypted credential storage for all VM accounts | https://keepass.info/download.html |
 
 Detailed installation steps: [`docs/00-vmware-workstation-installation.md`](./docs/00-vmware-workstation-installation.md), [`docs/03-remote-access-tooling-setup.md`](./docs/03-remote-access-tooling-setup.md)
 
