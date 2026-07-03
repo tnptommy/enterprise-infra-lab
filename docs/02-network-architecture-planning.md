@@ -44,6 +44,7 @@ Every VM uses **two virtual network adapters**:
 2. Go to **Edit → Virtual Network Editor**.
 3. Click **Change Settings** (requires Administrator elevation — accept the UAC prompt).
 4. Select **VMnet1 (Host-only)** from the list.
+> <img width="443" height="385" alt="image" src="https://github.com/user-attachments/assets/10c40043-f4e5-4e97-951f-1b3de1bb2972" />
 5. Set:
    - **Subnet IP:** `192.168.10.0`
    - **Subnet mask:** `255.255.255.0`
