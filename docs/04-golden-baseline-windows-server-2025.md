@@ -53,6 +53,7 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 > <img width="315" height="314" alt="image" src="https://github.com/user-attachments/assets/cbf446f4-8bf5-4e8d-b45f-6f1277914ae3" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-WinServer2025` and choose a storage location.
+> <img width="316" height="312" alt="image" src="https://github.com/user-attachments/assets/8cdcc8a7-1335-4046-b494-20b270defc24" />
 5. Allocate resources per the [VM specification](#vm-specification) table above.
 6. Complete the wizard and power on the VM.
 7. In the Windows Setup screen, choose **Windows Server 2025 Standard/Datacenter (Desktop Experience)** — the specific edition selected here doesn't matter much, since [Step 6](#step-6--convert-evaluation-to-datacenter-edition-via-dism-set-edition) converts it explicitly regardless.
