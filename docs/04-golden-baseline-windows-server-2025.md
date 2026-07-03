@@ -62,6 +62,7 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 > <img width="510" height="381" alt="image" src="https://github.com/user-attachments/assets/a5fa080c-81c0-487b-a621-6f31b78b2673" />
 8. Complete installation: accept the license, choose **Custom install**, select the virtual disk, wait for installation to finish and reboot.
 > <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/4af97627-8e61-4b0e-9c43-0223f0b07671" />
+> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/3879509a-a058-4ca9-9c3e-abbccc7c035a" />
 9. Set a local Administrator password when prompted.
 
 ---
