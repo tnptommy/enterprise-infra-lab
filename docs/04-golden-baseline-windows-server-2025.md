@@ -177,7 +177,7 @@ This lab activates against an external, already-existing KMS host — see the [R
 1. Confirm the VM can reach the KMS host over NIC 1 (NAT) before attempting activation:
 
 ```powershell
-Test-NetConnection kms.srv.crsoo.com -Port 1688
+Test-NetConnection active.orientsoftware.asia -Port 1688
 ```
 Expect `TcpTestSucceeded : True`. If this fails, activation will fail too — check NIC 1's internet connectivity and DNS resolution first.
 
@@ -190,7 +190,7 @@ slmgr /ipk D764K-2NDRG-47T6Q-P8T8W-YP6DF
 3. Point activation at the KMS host:
 
 ```powershell
-slmgr /skms kms.srv.crsoo.com:1688
+slmgr /skms active.orientsoftware.asia:1688
 ```
 
 4. Activate:
