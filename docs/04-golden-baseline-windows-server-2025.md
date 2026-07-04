@@ -49,13 +49,19 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
 2. Guest OS: **Microsoft Windows**, version **Windows Server 2025**.
+> <img width="317" height="312" alt="image" src="https://github.com/user-attachments/assets/bb19a4ee-3f9f-4c00-968a-de7dc826ecdf" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-WinServer2025` and choose a storage location.
 5. Allocate resources per the [VM specification](#vm-specification) table above.
+> <img width="571" height="584" alt="image" src="https://github.com/user-attachments/assets/f549e9d5-0d77-4529-b432-a6c0784b12b9" />
 6. Complete the wizard and power on the VM.
 7. In the Windows Setup screen, choose **Windows Server 2025 Standard/Datacenter (Desktop Experience)** — the specific edition selected here doesn't matter much, since [Step 5](#step-5--convert-evaluation-to-datacenter-edition-via-dism-set-edition) converts it explicitly regardless.
+> <img width="512" height="383" alt="image" src="https://github.com/user-attachments/assets/04d324d7-6308-4445-b951-4c5397381a20" />
 8. Complete installation: accept the license, choose **Custom install**, select the virtual disk, wait for installation to finish and reboot.
+> <img width="512" height="384" alt="image" src="https://github.com/user-attachments/assets/0c0dea14-5cc0-4e8d-965c-ae1ef1e2289f" />
+> <img width="512" height="384" alt="image" src="https://github.com/user-attachments/assets/8bbf5300-8d97-480a-be31-4eaf83428175" />
 9. Set a local Administrator password when prompted.
+> <img width="512" height="384" alt="image" src="https://github.com/user-attachments/assets/79e04d6e-4a10-4ae2-aae4-b469bc364320" />
 
 ---
 
@@ -72,8 +78,14 @@ If this returns a service in `Running` state, VMware Tools is already installed 
 
 2. If the service doesn't exist, trigger installation manually:
    - **VM → Install VMware Tools** in the VMware Workstation menu (this mounts a virtual CD containing the installer).
+   - 
+     > <img width="510" height="383" alt="image" src="https://github.com/user-attachments/assets/b907bf07-ed46-40e6-8c0e-fc432e5108f5" />
    - Open the mounted drive in Windows Explorer, run `setup64.exe`.
+   - 
+     > <img width="510" height="383" alt="image" src="https://github.com/user-attachments/assets/8b3f1b52-c051-4150-a749-fe5aa27610a6" />
    - Click through the wizard with default options → **Install** → **Finish**.
+   - 
+     > <img width="250" height="200" alt="image" src="https://github.com/user-attachments/assets/322c9d7b-34d1-4a4d-8340-6bc39f6b6b51" />
    - Restart when prompted.
 
 ---
