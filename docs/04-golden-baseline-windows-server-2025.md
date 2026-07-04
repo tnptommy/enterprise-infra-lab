@@ -229,7 +229,7 @@ Windows Update runs over NIC 1 (NAT), which already has internet access. This st
 ```powershell
 Dism /Online /Cleanup-Image /StartComponentCleanup
 ```
-
+> <img width="526" height="136" alt="image" src="https://github.com/user-attachments/assets/81310281-cf25-418c-8f8e-1af14eec4a95" />
 2. Empty the Recycle Bin, clear temp files if desired (optional, cosmetic).
 3. Detach the ISO: **VM → Removable Devices → CD/DVD → Settings → uncheck Connected**.
 4. Open an elevated Command Prompt and run Sysprep to generalize the image, ready for cloning:
