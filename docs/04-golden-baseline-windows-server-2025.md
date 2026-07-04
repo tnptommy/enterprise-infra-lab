@@ -215,6 +215,8 @@ KMS-activated Windows installations typically show a renewal interval rather tha
 Windows Update runs over NIC 1 (NAT), which already has internet access. This step now runs **after** edition conversion and activation ([Step 5](#step-5--convert-evaluation-to-datacenter-edition-via-dism-set-edition), [Step 6](#step-6--activate-via-gvlk-against-the-online-kms-host)) — patching a properly licensed, correctly edited image avoids the servicing-stack version drift explained in Step 5's note.
 
 1. **Settings → Windows Update → Check for updates**.
+> <img width="784" height="331" alt="image" src="https://github.com/user-attachments/assets/4d240b8d-4840-4e38-95f3-bfe74f151d09" />
+
 2. Install all available updates, rebooting as needed, until "You're up to date" appears.
 3. This step patches known vulnerabilities in the base OS before the image is sealed and reused across every Windows Server VM in this lab.
 
