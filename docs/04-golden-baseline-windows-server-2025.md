@@ -68,19 +68,12 @@ Recent versions of VMware Workstation install VMware Tools automatically — eit
 ```powershell
 Get-Service -Name VMTools
 ```
-> <img width="695" height="202" alt="image" src="https://github.com/user-attachments/assets/d78019b7-5b89-494e-95f4-06ef0e9572be" />
 If this returns a service in `Running` state, VMware Tools is already installed — skip to [Step 3](#step-3--configure-the-dual-nic-network-adapters).
 
 2. If the service doesn't exist, trigger installation manually:
    - **VM → Install VMware Tools** in the VMware Workstation menu (this mounts a virtual CD containing the installer).
-
-     > <img width="391" height="296" alt="image" src="https://github.com/user-attachments/assets/6ad9d9c1-f0a2-432b-b3de-8565ed682ac5" />
    - Open the mounted drive in Windows Explorer, run `setup64.exe`.
-
-     > <img width="391" height="294" alt="image" src="https://github.com/user-attachments/assets/96b530bb-239c-4032-ae93-115b903fdfb3" />
    - Click through the wizard with default options → **Install** → **Finish**.
-
-     > <img width="391" height="294" alt="image" src="https://github.com/user-attachments/assets/04f260a2-dab0-4c80-9eda-9e00c0a012d5" />
    - Restart when prompted.
 
 ---
@@ -97,33 +90,16 @@ This baseline follows the [dual-interface network design](./02-network-architect
 
 ---
 
-<<<<<<< HEAD
 ## Step 4 — Enable .NET Framework 3.5 via DISM
-=======
-## Step 4 — Apply Windows Update baseline
-
-Windows Update runs over NIC 1 (NAT), which already has internet access.
-
-1. **Settings → Windows Update → Check for updates**.
-> <img width="824" height="344" alt="image" src="https://github.com/user-attachments/assets/d7592aa2-027a-4368-9a94-4e53106cfdcd" />
-2. Install all available updates, rebooting as needed, until "You're up to date" appears.
-3. This step patches known vulnerabilities in the base OS before the image is sealed and reused across every Windows Server VM in this lab.
-
----
-
-## Step 5 — Enable .NET Framework 3.5 via DISM
->>>>>>> 2beb10800d877b65be80245b3879708d01d93de5
 
 Windows Server 2025 does not include .NET Framework 3.5 by default, and — unlike .NET 4.x — it cannot always be enabled purely through Windows Update in an offline/lab environment. Installing it from the mounted ISO's source files avoids depending on internet access for this specific feature.
 
 1. With the installation ISO still attached (or re-attach it: **VM → Removable Devices → CD/DVD → Settings → Use ISO image file**), open an elevated PowerShell prompt.
 2. Confirm the ISO's drive letter (commonly `D:`), then run:
-> <img width="841" height="443" alt="image" src="https://github.com/user-attachments/assets/19045ad4-f797-411a-89b3-79eb0b4b6bfc" />
 
 ```powershell
 Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /LimitAccess
 ```
-> <img width="863" height="275" alt="image" src="https://github.com/user-attachments/assets/d004d72f-d85d-403c-af3e-2698e3f67294" />
 
 3. Confirm the operation completes with **"The operation completed successfully."**
 4. Verify:
@@ -131,7 +107,6 @@ Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /Li
 ```powershell
 Get-WindowsFeature -Name NET-Framework-Core
 ```
-> <img width="694" height="77" alt="image" src="https://github.com/user-attachments/assets/9d5235ed-0ce8-4d33-9339-bcfb145fb7f5" />
 
 ---
 
@@ -146,15 +121,12 @@ The ISO downloaded in [`01-iso-acquisition-and-verification.md`](./01-iso-acquis
 ```powershell
 DISM /Online /Get-CurrentEdition
 ```
-> <img width="406" height="178" alt="image" src="https://github.com/user-attachments/assets/fbf6954b-89dc-4722-bbcd-50e18e46f4e5" />
 
 2. List the editions this installation can convert to:
 
 ```powershell
 DISM /Online /Get-TargetEditions
 ```
-> <img width="395" height="190" alt="image" src="https://github.com/user-attachments/assets/68c3ab90-ee07-4ae0-aabe-be9e334506da" />
-
 Confirm `ServerDatacenter` appears in the list.
 
 3. Convert to Datacenter, supplying the GVLK directly so the edition change and product key are applied together:
@@ -162,7 +134,6 @@ Confirm `ServerDatacenter` appears in the list.
 ```powershell
 DISM /Online /Set-Edition:ServerDatacenter /ProductKey:D764K-2NDRG-47T6Q-P8T8W-YP6DF /AcceptEula
 ```
-<<<<<<< HEAD
 
 4. The system reboots automatically to apply the edition change. **Wait for it to fully come back up and log in again before proceeding to Step 6** — running activation commands before this reboot completes is the single most common cause of the error below.
 
@@ -174,10 +145,6 @@ DISM /Online /Get-CurrentEdition
 Expect `ServerDatacenter` with no `Eval` suffix. If it still shows `ServerDatacenterEval`, the conversion did not complete — repeat step 3 and make sure the reboot fully finishes this time.
 
 > **Common error if this step is skipped or rushed:** running `slmgr /ipk` while still on the Evaluation edition (or before its reboot has completed) fails with `Error: 0xC004F069` / "The Software Licensing Service reported that the product SKU is not found." This is not a key or KMS problem — it means the edition conversion above hasn't actually taken effect yet. Re-run `DISM /Online /Get-CurrentEdition` to confirm, complete the reboot, and only then proceed to Step 6.
-=======
-> <img width="848" height="305" alt="image" src="https://github.com/user-attachments/assets/e05fdf7a-7f49-4956-b1be-efc19bef24e9" />
-4. The system reboots automatically to apply the edition change. Wait for it to come back up and log in again.
->>>>>>> 2beb10800d877b65be80245b3879708d01d93de5
 
 ---
 
@@ -188,10 +155,8 @@ This lab activates against an external, already-existing KMS host — see the [R
 1. Confirm the VM can reach the KMS host over NIC 1 (NAT) before attempting activation:
 
 ```powershell
-Test-NetConnection active.orientsoftware.asia -Port 1688
+Test-NetConnection kms.srv.crsoo.com -Port 1688
 ```
-> <img width="581" height="147" alt="image" src="https://github.com/user-attachments/assets/2de5acca-282c-4f52-abd0-e13ac9cc1747" />
-
 Expect `TcpTestSucceeded : True`. If this fails, activation will fail too — check NIC 1's internet connectivity and DNS resolution first.
 
 2. Set the product key (redundant if already applied via `Set-Edition` above, but explicit and safe to repeat):
@@ -203,7 +168,7 @@ slmgr /ipk D764K-2NDRG-47T6Q-P8T8W-YP6DF
 3. Point activation at the KMS host:
 
 ```powershell
-slmgr /skms active.orientsoftware.asia:1688
+slmgr /skms kms.srv.crsoo.com:1688
 ```
 
 4. Activate:
