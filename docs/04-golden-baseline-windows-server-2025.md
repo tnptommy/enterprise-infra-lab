@@ -78,13 +78,13 @@ If this returns a service in `Running` state, VMware Tools is already installed 
 
 2. If the service doesn't exist, trigger installation manually:
    - **VM → Install VMware Tools** in the VMware Workstation menu (this mounts a virtual CD containing the installer).
-   - 
+     
      > <img width="510" height="383" alt="image" src="https://github.com/user-attachments/assets/b907bf07-ed46-40e6-8c0e-fc432e5108f5" />
    - Open the mounted drive in Windows Explorer, run `setup64.exe`.
-   - 
+     
      > <img width="510" height="383" alt="image" src="https://github.com/user-attachments/assets/8b3f1b52-c051-4150-a749-fe5aa27610a6" />
    - Click through the wizard with default options → **Install** → **Finish**.
-   - 
+     
      > <img width="250" height="200" alt="image" src="https://github.com/user-attachments/assets/322c9d7b-34d1-4a4d-8340-6bc39f6b6b51" />
    - Restart when prompted.
 
@@ -97,6 +97,7 @@ This baseline follows the [dual-interface network design](./02-network-architect
 1. Power off the VM.
 2. **VM → Settings** — confirm **Network Adapter** is set to **NAT**. This is NIC 1.
 3. **VM → Settings → Add… → Network Adapter** — set the new adapter to **Custom → VMnet1 (Host-only)**. This is NIC 2.
+> <img width="567" height="532" alt="image" src="https://github.com/user-attachments/assets/64de0ca1-61ad-494f-9383-142182d3666d" />
 4. Power the VM back on.
 5. Leave both adapters on **DHCP** for now — this baseline is never assigned a static IP itself. Static IPs are configured per-VM after cloning, in each VM's own build document.
 
