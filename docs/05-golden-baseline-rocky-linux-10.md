@@ -130,6 +130,7 @@ sudo dnf install -y open-vm-tools
 sudo systemctl enable --now vmtoolsd
 sudo systemctl status vmtoolsd
 ```
+> <img width="800" height="180" alt="image" src="https://github.com/user-attachments/assets/0b2de841-b8df-418f-b740-7cf63493f9a4" />
 
 Confirm it's running (`active (running)` in the status output) before continuing.
 
@@ -149,7 +150,9 @@ This baseline follows the [dual-interface network design](./02-network-architect
 nmcli device status
 ip a
 ```
-You should see two interfaces (commonly `ens160` and `ens192`, or similar) each with a DHCP-assigned address — one from VMnet8's NAT range, one from VMnet1's Host-only range. Leave both on DHCP for now; static IPs are configured per-VM after cloning, in each VM's own build document.
+> <img width="700" height="350" alt="image" src="https://github.com/user-attachments/assets/6e59d7b1-7190-479d-90f2-1c147ef924fa" />
+
+You should see two interfaces (commonly `ens160` and `ens224`, or similar) each with a DHCP-assigned address — one from VMnet8's NAT range, one from VMnet1's Host-only range. Leave both on DHCP for now; static IPs are configured per-VM after cloning, in each VM's own build document.
 
 ---
 
@@ -157,7 +160,7 @@ You should see two interfaces (commonly `ens160` and `ens192`, or similar) each 
 
 ```bash
 sudo dnf update -y
-sudo dnf install -y net-tools lftp curl tar wget zip telnet vim rsync
+sudo dnf install -y net-tools lftp curl tar wget zip telnet vim rsync nano
 sudo dnf groupinstall -y "Development Tools"
 ```
 
