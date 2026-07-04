@@ -46,12 +46,15 @@ These specs are intentionally modest — once cloned for WEB01, MON01, ELK01, or
 ## Step 1 — Create the VM and install Rocky Linux 10 Minimal
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
-2. Guest OS: **Linux**, version **Red Hat Enterprise Linux 9 64-bit** (or the closest RHEL version your VMware Workstation release lists — VMware Workstation does not list Rocky Linux by name, and RHEL is its correct upstream match; the installer works identically regardless of this label).
+2. Guest OS: **Linux**, version **Red Hat Enterprise Linux 10 64-bit** (or the closest RHEL version your VMware Workstation release lists — VMware Workstation does not list Rocky Linux by name, and RHEL is its correct upstream match; the installer works identically regardless of this label).
+> <img width="524" height="524" alt="image" src="https://github.com/user-attachments/assets/64d29e56-da81-412e-91c5-6a18a427ed82" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
 4. Name the VM `GoldenBaseline-Rocky10` and choose a storage location.
 5. Allocate resources per the [VM specification](#vm-specification) table above.
+> <img width="561" height="524" alt="image" src="https://github.com/user-attachments/assets/9e8fe632-9f90-4257-ae17-0245f8a02d28" />
 6. Complete the wizard and power on the VM.
 7. In the Rocky Linux installer (Anaconda), choose **Minimal Install** under Software Selection.
+> <img width="358" height="234" alt="image" src="https://github.com/user-attachments/assets/55934fbe-3836-408a-baec-3bf589ff60b9" />
 8. Under Installation Destination, select the disk and choose **Custom** partitioning, then create the following layout manually:
 
 | Mount point | Size | Filesystem | Notes |
@@ -59,6 +62,8 @@ These specs are intentionally modest — once cloned for WEB01, MON01, ELK01, or
 | `/boot` | 1 GiB | xfs | Standard partition, outside LVM |
 | `/boot/efi` | 200 MiB | EFI System Partition | Only if the VM firmware is UEFI — check **VM → Settings → Options → Advanced → Firmware type** beforehand; skip this row if using BIOS |
 | LVM Volume Group `rl` → Logical Volume `root` | Remaining space | xfs | Mount at `/` |
+
+> <img width="637" height="401" alt="image" src="https://github.com/user-attachments/assets/8d24f1b1-64db-4ba8-9da1-6d5e78645a6a" />
 
 No swap partition is created here deliberately — swap is sized per-VM later (2× that VM's RAM, per the [README's resource table](../README.md#virtual-machine-inventory)) using a swap file, so it isn't locked into the golden baseline's disk layout. Using LVM for the root volume (rather than a plain partition) is what makes disk expansion after cloning straightforward later — see [Cloning this baseline later](#cloning-this-baseline-later).
 
@@ -78,6 +83,8 @@ Rather than continuing the rest of this build inside the cramped VMware console 
 ```bash
 sudo systemctl status sshd
 ```
+> <img width="800" height="440" alt="image" src="https://github.com/user-attachments/assets/8ec37acc-fad5-4378-8bae-d0c7da177f6e" />
+
 If it isn't running for any reason:
 
 ```bash
@@ -89,6 +96,8 @@ sudo systemctl enable --now sshd
 ```bash
 sudo firewall-cmd --list-services
 ```
+> <img width="422" height="52" alt="image" src="https://github.com/user-attachments/assets/29d5283a-8228-4683-909f-d6b9e30e9a85" />
+
 Expect `ssh` in the output. If missing:
 
 ```bash
@@ -101,6 +110,8 @@ sudo firewall-cmd --reload
 ```bash
 ip a
 ```
+> <img width="800" height="300" alt="image" src="https://github.com/user-attachments/assets/79b1b8a6-42b5-4ee8-a1c5-7026f2701849" />
+
 Note the address shown for the active interface (commonly `ens160` or similar, on VMware's default NAT/DHCP range at this stage).
 
 5. From the host machine, open **PuTTY** ([installed in `03-remote-access-tooling-setup.md`](./03-remote-access-tooling-setup.md)), enter that IP address, and connect.

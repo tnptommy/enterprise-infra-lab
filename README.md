@@ -93,8 +93,8 @@ All Windows machines in this lab are activated against an **external, online KMS
 
 | Edition | GVLK | KMS host (example — replace with your own) |
 |---|---|---|
-| Windows Server 2025 Datacenter | `D764K-2NDRG-47T6Q-P8T8W-YP6DF` | `kms.srv.crsoo.com:1688` |
-| Windows 11 Pro | `W269N-WFGWX-YVC9B-4J6C9-T83GX` | `kms.srv.crsoo.com:1688` |
+| Windows Server 2025 Datacenter | `D764K-2NDRG-47T6Q-P8T8W-YP6DF` | `active.orientsoftware.asia:1688` |
+| Windows 11 Pro | `W269N-WFGWX-YVC9B-4J6C9-T83GX` | `active.orientsoftware.asia:1688` |
 
 Windows Server images are provisioned from the free Evaluation ISO and converted to a retail edition via `DISM /Set-Edition` **before** activation — the full sequence (edition check, edition conversion, connectivity test, activation, verification) is documented in [`docs/04-golden-baseline-windows-server-2025.md`](./docs/04-golden-baseline-windows-server-2025.md).
 
