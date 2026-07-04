@@ -13,10 +13,10 @@ Build this once. It is not assigned a static IP, a hostname matching the naming 
 - [Step 1 — Create the VM and install Windows Server 2025](#step-1--create-the-vm-and-install-windows-server-2025)
 - [Step 2 — Verify VMware Tools](#step-2--verify-vmware-tools)
 - [Step 3 — Configure the dual-NIC network adapters](#step-3--configure-the-dual-nic-network-adapters)
-- [Step 4 — Apply Windows Update baseline](#step-4--apply-windows-update-baseline)
-- [Step 5 — Enable .NET Framework 3.5 via DISM](#step-5--enable-net-framework-35-via-dism)
-- [Step 6 — Convert Evaluation to Datacenter edition via DISM Set-Edition](#step-6--convert-evaluation-to-datacenter-edition-via-dism-set-edition)
-- [Step 7 — Activate via GVLK against the online KMS host](#step-7--activate-via-gvlk-against-the-online-kms-host)
+- [Step 4 — Enable .NET Framework 3.5 via DISM](#step-4--enable-net-framework-35-via-dism)
+- [Step 5 — Convert Evaluation to Datacenter edition via DISM Set-Edition](#step-5--convert-evaluation-to-datacenter-edition-via-dism-set-edition)
+- [Step 6 — Activate via GVLK against the online KMS host](#step-6--activate-via-gvlk-against-the-online-kms-host)
+- [Step 7 — Apply Windows Update baseline](#step-7--apply-windows-update-baseline)
 - [Step 8 — Clean up and seal the image](#step-8--clean-up-and-seal-the-image)
 - [Step 9 — Convert to a reusable template](#step-9--convert-to-a-reusable-template)
 - [Cloning this baseline later](#cloning-this-baseline-later)
@@ -48,22 +48,13 @@ These specs are intentionally modest — once cloned for DC01 or WINAPP01, adjus
 ## Step 1 — Create the VM and install Windows Server 2025
 
 1. In VMware Workstation: **File → New Virtual Machine → Custom (advanced)**.
-> <img width="319" height="315" alt="image" src="https://github.com/user-attachments/assets/dc242a1b-d04a-422d-9617-5cb185554124" />
 2. Guest OS: **Microsoft Windows**, version **Windows Server 2025**.
-> <img width="315" height="314" alt="image" src="https://github.com/user-attachments/assets/cbf446f4-8bf5-4e8d-b45f-6f1277914ae3" />
 3. Point the installer to the ISO from your shared ISO folder ([`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md)).
-> <img width="317" height="314" alt="image" src="https://github.com/user-attachments/assets/e067eec2-38de-4f2b-a0bd-6ec04d6bcdd8" />
 4. Name the VM `GoldenBaseline-WinServer2025` and choose a storage location.
-> <img width="316" height="312" alt="image" src="https://github.com/user-attachments/assets/8cdcc8a7-1335-4046-b494-20b270defc24" />
 5. Allocate resources per the [VM specification](#vm-specification) table above.
-> <img width="557" height="521" alt="image" src="https://github.com/user-attachments/assets/8e43be46-1d85-48e2-bd12-b31bfcfc3677" />
 6. Complete the wizard and power on the VM.
-7. In the Windows Setup screen, choose **Windows Server 2025 Standard/Datacenter (Desktop Experience)** — the specific edition selected here doesn't matter much, since [Step 6](#step-6--convert-evaluation-to-datacenter-edition-via-dism-set-edition) converts it explicitly regardless.
-> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/a5fa080c-81c0-487b-a621-6f31b78b2673" />
+7. In the Windows Setup screen, choose **Windows Server 2025 Standard/Datacenter (Desktop Experience)** — the specific edition selected here doesn't matter much, since [Step 5](#step-5--convert-evaluation-to-datacenter-edition-via-dism-set-edition) converts it explicitly regardless.
 8. Complete installation: accept the license, choose **Custom install**, select the virtual disk, wait for installation to finish and reboot.
-> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/4af97627-8e61-4b0e-9c43-0223f0b07671" />
-> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/3879509a-a058-4ca9-9c3e-abbccc7c035a" />
-> <img width="509" height="382" alt="image" src="https://github.com/user-attachments/assets/17eda97e-d55b-4ca0-a666-affc63472fb1" />
 9. Set a local Administrator password when prompted.
 
 ---
@@ -99,17 +90,7 @@ This baseline follows the [dual-interface network design](./02-network-architect
 
 ---
 
-## Step 4 — Apply Windows Update baseline
-
-Windows Update runs over NIC 1 (NAT), which already has internet access.
-
-1. **Settings → Windows Update → Check for updates**.
-2. Install all available updates, rebooting as needed, until "You're up to date" appears.
-3. This step patches known vulnerabilities in the base OS before the image is sealed and reused across every Windows Server VM in this lab.
-
----
-
-## Step 5 — Enable .NET Framework 3.5 via DISM
+## Step 4 — Enable .NET Framework 3.5 via DISM
 
 Windows Server 2025 does not include .NET Framework 3.5 by default, and — unlike .NET 4.x — it cannot always be enabled purely through Windows Update in an offline/lab environment. Installing it from the mounted ISO's source files avoids depending on internet access for this specific feature.
 
@@ -129,9 +110,11 @@ Get-WindowsFeature -Name NET-Framework-Core
 
 ---
 
-## Step 6 — Convert Evaluation to Datacenter edition via DISM Set-Edition
+## Step 5 — Convert Evaluation to Datacenter edition via DISM Set-Edition
 
 The ISO downloaded in [`01-iso-acquisition-and-verification.md`](./01-iso-acquisition-and-verification.md) is the free Evaluation edition, valid for 180 days. Converting it to a licensed retail edition removes that expiry and matches it to the GVLK used for activation in the next step.
+
+> **Do this before installing any Windows Update.** `DISM /Set-Edition` runs a two-phase operation: it stages the new edition package online, then finalizes it offline during the reboot, before the desktop loads. That offline phase depends on the image's built-in servicing stack matching the exact build the ISO shipped with. If Windows Update has already patched the servicing stack or other components first, the offline finalize step can fail to load required files (commonly surfacing in `CBS.log` as `ERROR_MOD_NOT_FOUND` on a file like `cmsofflineservicing.dll`, with a visible version mismatch between the servicing stack and image version) — causing Windows to silently roll the edition change back on the next boot ("We couldn't complete the upgrade. No need to worry — undoing changes."), even though `Get-Volume` shows plenty of free disk space and the online DISM output itself reported success. Converting the edition on the pristine, freshly installed image — before any patching — avoids this version drift entirely.
 
 1. Check the current edition:
 
@@ -152,11 +135,20 @@ Confirm `ServerDatacenter` appears in the list.
 DISM /Online /Set-Edition:ServerDatacenter /ProductKey:D764K-2NDRG-47T6Q-P8T8W-YP6DF /AcceptEula
 ```
 
-4. The system reboots automatically to apply the edition change. Wait for it to come back up and log in again.
+4. The system reboots automatically to apply the edition change. **Wait for it to fully come back up and log in again before proceeding to Step 6** — running activation commands before this reboot completes is the single most common cause of the error below.
+
+5. Confirm the edition change actually took effect before moving on:
+
+```powershell
+DISM /Online /Get-CurrentEdition
+```
+Expect `ServerDatacenter` with no `Eval` suffix. If it still shows `ServerDatacenterEval`, the conversion did not complete — repeat step 3 and make sure the reboot fully finishes this time.
+
+> **Common error if this step is skipped or rushed:** running `slmgr /ipk` while still on the Evaluation edition (or before its reboot has completed) fails with `Error: 0xC004F069` / "The Software Licensing Service reported that the product SKU is not found." This is not a key or KMS problem — it means the edition conversion above hasn't actually taken effect yet. Re-run `DISM /Online /Get-CurrentEdition` to confirm, complete the reboot, and only then proceed to Step 6.
 
 ---
 
-## Step 7 — Activate via GVLK against the online KMS host
+## Step 6 — Activate via GVLK against the online KMS host
 
 This lab activates against an external, already-existing KMS host — see the [README's License activation section](../README.md#license-activation) for the full explanation of what a GVLK is and does.
 
@@ -191,6 +183,16 @@ slmgr /ato
 slmgr /xpr
 ```
 Expect output indicating the machine is permanently activated (KMS-activated Windows installations typically show a renewal interval rather than a fixed expiry — this is expected and normal for volume licensing).
+
+---
+
+## Step 7 — Apply Windows Update baseline
+
+Windows Update runs over NIC 1 (NAT), which already has internet access. This step now runs **after** edition conversion and activation ([Step 5](#step-5--convert-evaluation-to-datacenter-edition-via-dism-set-edition), [Step 6](#step-6--activate-via-gvlk-against-the-online-kms-host)) — patching a properly licensed, correctly edited image avoids the servicing-stack version drift explained in Step 5's note.
+
+1. **Settings → Windows Update → Check for updates**.
+2. Install all available updates, rebooting as needed, until "You're up to date" appears.
+3. This step patches known vulnerabilities in the base OS before the image is sealed and reused across every Windows Server VM in this lab.
 
 ---
 
