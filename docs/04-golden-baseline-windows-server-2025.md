@@ -160,6 +160,8 @@ DISM /Online /Set-Edition:ServerDatacenter /ProductKey:D764K-2NDRG-47T6Q-P8T8W-Y
 ```powershell
 DISM /Online /Get-CurrentEdition
 ```
+> <img width="403" height="176" alt="image" src="https://github.com/user-attachments/assets/63a52534-f137-40ad-8bd3-17e73eb6386a" />
+
 Expect `ServerDatacenter` with no `Eval` suffix. If it still shows `ServerDatacenterEval`, the conversion did not complete — repeat step 3 and make sure the reboot fully finishes this time.
 
 > **Common error if this step is skipped or rushed:** running `slmgr /ipk` while still on the Evaluation edition (or before its reboot has completed) fails with `Error: 0xC004F069` / "The Software Licensing Service reported that the product SKU is not found." This is not a key or KMS problem — it means the edition conversion above hasn't actually taken effect yet. Re-run `DISM /Online /Get-CurrentEdition` to confirm, complete the reboot, and only then proceed to Step 6.
@@ -175,6 +177,8 @@ This lab activates against an external, already-existing KMS host — see the [R
 ```powershell
 Test-NetConnection active.orientsoftware.asia -Port 1688
 ```
+> <img width="566" height="136" alt="image" src="https://github.com/user-attachments/assets/294c7fea-3765-4b94-a2ba-0c40633855b3" />
+
 Expect `TcpTestSucceeded : True`. If this fails, activation will fail too — check NIC 1's internet connectivity and DNS resolution first.
 
 2. Set the product key (redundant if already applied via `Set-Edition` above, but explicit and safe to repeat):
@@ -182,24 +186,25 @@ Expect `TcpTestSucceeded : True`. If this fails, activation will fail too — ch
 ```powershell
 slmgr /ipk D764K-2NDRG-47T6Q-P8T8W-YP6DF
 ```
+> <img width="468" height="116" alt="image" src="https://github.com/user-attachments/assets/c29fa8c8-2427-4682-8711-a90861365b4e" />
 
 3. Point activation at the KMS host:
 
 ```powershell
 slmgr /skms active.orientsoftware.asia:1688
 ```
-
 4. Activate:
 
 ```powershell
 slmgr /ato
 ```
-
+> <img width="477" height="140" alt="image" src="https://github.com/user-attachments/assets/91400db5-4590-4b68-8be4-5eb954f391e7" />
 5. Verify:
 
 ```powershell
 slmgr /xpr
 ```
+> <img width="412" height="128" alt="image" src="https://github.com/user-attachments/assets/c83c08d9-e0f2-46d5-908a-7f95f3df2f37" />
 Expect output indicating the machine is permanently activated (KMS-activated Windows installations typically show a renewal interval rather than a fixed expiry — this is expected and normal for volume licensing).
 
 ---
