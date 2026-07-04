@@ -109,10 +109,12 @@ Windows Server 2025 does not include .NET Framework 3.5 by default, and — unli
 
 1. With the installation ISO still attached (or re-attach it: **VM → Removable Devices → CD/DVD → Settings → Use ISO image file**), open an elevated PowerShell prompt.
 2. Confirm the ISO's drive letter (commonly `D:`), then run:
+> <img width="843" height="443" alt="image" src="https://github.com/user-attachments/assets/043fa628-9340-45c8-a47a-66b82d68c25e" />
 
 ```powershell
 Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /LimitAccess
-```
+ ```
+> <img width="800" height="150" alt="image" src="https://github.com/user-attachments/assets/84ced26f-bd0e-42d1-8298-321a1a7e1f3c" />
 
 3. Confirm the operation completes with **"The operation completed successfully."**
 4. Verify:
@@ -120,7 +122,7 @@ Dism /Online /Enable-Feature /FeatureName:NetFx3 /All /Source:D:\sources\sxs /Li
 ```powershell
 Get-WindowsFeature -Name NET-Framework-Core
 ```
-
+> <img width="687" height="86" alt="image" src="https://github.com/user-attachments/assets/2645435a-4148-4a46-b743-f8d96c421497" />
 ---
 
 ## Step 5 — Convert Evaluation to Datacenter edition via DISM Set-Edition
@@ -140,6 +142,8 @@ DISM /Online /Get-CurrentEdition
 ```powershell
 DISM /Online /Get-TargetEditions
 ```
+> <img width="400" height="171" alt="image" src="https://github.com/user-attachments/assets/8d65f8d9-c219-41eb-b495-d78049c1b920" />
+
 Confirm `ServerDatacenter` appears in the list.
 
 3. Convert to Datacenter, supplying the GVLK directly so the edition change and product key are applied together:
@@ -147,6 +151,7 @@ Confirm `ServerDatacenter` appears in the list.
 ```powershell
 DISM /Online /Set-Edition:ServerDatacenter /ProductKey:D764K-2NDRG-47T6Q-P8T8W-YP6DF /AcceptEula
 ```
+> <img width="847" height="323" alt="image" src="https://github.com/user-attachments/assets/8839c1cd-84ea-40e4-af50-de15731176c0" />
 
 4. The system reboots automatically to apply the edition change. **Wait for it to fully come back up and log in again before proceeding to Step 6** — running activation commands before this reboot completes is the single most common cause of the error below.
 
