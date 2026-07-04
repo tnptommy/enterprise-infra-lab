@@ -205,7 +205,8 @@ slmgr /ato
 slmgr /xpr
 ```
 > <img width="412" height="128" alt="image" src="https://github.com/user-attachments/assets/c83c08d9-e0f2-46d5-908a-7f95f3df2f37" />
-Expect output indicating the machine is permanently activated (KMS-activated Windows installations typically show a renewal interval rather than a fixed expiry — this is expected and normal for volume licensing).
+KMS-activated Windows installations typically show a renewal interval rather than a fixed expiry — this is expected and normal for volume licensing.
+> <img width="763" height="284" alt="image" src="https://github.com/user-attachments/assets/e6abf923-8bc0-459a-b238-701d5973fcdf" />
 
 ---
 
