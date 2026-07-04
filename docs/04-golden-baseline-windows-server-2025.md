@@ -165,7 +165,7 @@ Confirm `ServerDatacenter` appears in the list.
 ```powershell
 DISM /Online /Set-Edition:ServerDatacenter /ProductKey:D764K-2NDRG-47T6Q-P8T8W-YP6DF /AcceptEula
 ```
-
+> <img width="848" height="305" alt="image" src="https://github.com/user-attachments/assets/e05fdf7a-7f49-4956-b1be-efc19bef24e9" />
 4. The system reboots automatically to apply the edition change. Wait for it to come back up and log in again.
 
 ---
@@ -179,6 +179,8 @@ This lab activates against an external, already-existing KMS host — see the [R
 ```powershell
 Test-NetConnection active.orientsoftware.asia -Port 1688
 ```
+> <img width="581" height="147" alt="image" src="https://github.com/user-attachments/assets/2de5acca-282c-4f52-abd0-e13ac9cc1747" />
+
 Expect `TcpTestSucceeded : True`. If this fails, activation will fail too — check NIC 1's internet connectivity and DNS resolution first.
 
 2. Set the product key (redundant if already applied via `Set-Edition` above, but explicit and safe to repeat):
