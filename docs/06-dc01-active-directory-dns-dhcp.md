@@ -145,8 +145,9 @@ New-NetIPAddress -InterfaceAlias "Internal-LabNet" -IPAddress 192.168.10.10 -Pre
 13. The server reboots automatically to complete promotion.
 
 14. After reboot, log in as `CORP-LAB\Administrator` (same password as the local Administrator account before promotion — domain promotion converts it into the Domain Administrator account).
-
+> <img width="1129" height="674" alt="image" src="https://github.com/user-attachments/assets/f2f03e9e-828e-47ed-876a-a3ac18495423" />
 15. Confirm the domain is up by opening **Server Manager → Tools → Active Directory Users and Computers** and confirming the `corp.com` domain tree appears.
+> <img width="548" height="175" alt="image" src="https://github.com/user-attachments/assets/351b2921-7649-4407-9255-bdf3842f4521" />
 
 **PowerShell equivalent (optional):**
 ```powershell
@@ -207,23 +208,38 @@ Resolve-DnsName active.orientsoftware.asia
 **Install the role:**
  
 1. **Server Manager → Manage → Add Roles and Features → Server Roles** → check **DHCP Server** → accept prompts → **Install**.
+> <img width="589" height="419" alt="image" src="https://github.com/user-attachments/assets/998ebc21-30ae-46a0-953b-de00a374a966" />
 **Authorize the DHCP server in AD:**
  
 2. Click the notification flag → **Complete DHCP configuration** → **Commit** → **Close**. This authorizes the server in Active Directory, required before it will hand out leases on a domain-joined network.
+> <img width="568" height="419" alt="image" src="https://github.com/user-attachments/assets/46a81fe1-e99e-4767-85e1-f1d4897bbe08" />
+
 **Create the scope:**
  
 3. **Server Manager → Tools → DHCP**.
 4. Expand `dc01.corp-lab.com.vn` → right-click **IPv4** → **New Scope…**.
+> <img width="400" height="300" alt="image" src="https://github.com/user-attachments/assets/22e4a0f3-4e15-46de-bd10-783b68f36cf8" />
 5. Follow the wizard:
    - Name: `Clients`
+
+     > <img width="568" height="419" alt="image" src="https://github.com/user-attachments/assets/46a81fe1-e99e-4767-85e1-f1d4897bbe08" />
    - Start IP: `192.168.10.100`, End IP: `192.168.10.200`, Subnet mask: `255.255.255.0` (matches the reserved DHCP range from [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#ip-allocation-table))
+
+     > <img width="383" height="314" alt="image" src="https://github.com/user-attachments/assets/e036f566-945a-4962-a828-ac18f88a3dd8" />
    - Exclusions/delay: none needed
    - Lease duration: default is fine
    - **Configure DHCP Options: Yes**
+
+     > <img width="385" height="319" alt="image" src="https://github.com/user-attachments/assets/235b9994-4b3f-4676-a670-0f02859a6e55" />
    - Router (default gateway): **leave blank** — deliberately, since per the [dual-interface design](./02-network-architecture-planning.md#design-overview), every VM reaches the internet independently through its own NIC 1 (NAT), not through NIC 2 (Host-only)
    - Domain name and DNS servers: Parent domain `corp-lab.com.vn`, DNS server `192.168.10.10`
+     
+     > <img width="386" height="320" alt="image" src="https://github.com/user-attachments/assets/0e8f62be-8a0d-4703-975f-49d9f49d81a7" />
    - WINS: skip
    - Activate this scope now: **Yes**
+
+     > <img width="386" height="317" alt="image" src="https://github.com/user-attachments/assets/ff850f87-f37d-4f9f-a9f1-a424afca635f" />
+
 6. Finish the wizard.
 **PowerShell equivalent (optional):**
 ```powershell
