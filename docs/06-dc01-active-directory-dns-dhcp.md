@@ -46,7 +46,9 @@ Every step below is written **GUI-first** — Server Manager wizards, MMC snap-i
 Follow [`04-golden-baseline-windows-server-2025.md`'s cloning instructions](./04-golden-baseline-windows-server-2025.md#cloning-this-baseline-later):
 
 1. Right-click `GoldenBaseline-WinServer2025` in the VMware Library → **Manage → Clone…** → **Create a full clone**.
+> <img width="326" height="265" alt="image" src="https://github.com/user-attachments/assets/4b5e7056-5b3c-46fb-a5b9-58e7c0efec66" />
 2. Name the clone `DC01_10.10`.
+> <img width="325" height="265" alt="image" src="https://github.com/user-attachments/assets/a5448793-56e8-49eb-b895-0edd16d9d861" />
 3. Adjust vCPU/RAM in **VM → Settings** per the [VM specification](#vm-specification) above.
 4. Do **not** power on yet — add the second disk first (next step), since VMware Workstation only allows adding a disk while the VM is off.
 
@@ -57,6 +59,7 @@ Follow [`04-golden-baseline-windows-server-2025.md`'s cloning instructions](./04
 1. With the clone still powered off: **VM → Settings → Add… → Hard Disk → Create a new virtual disk**.
 2. Size: **40 GB**, thin provisioned, store as a single file (or split, either works for this lab).
 3. Confirm the VM now shows two virtual disks in **VM → Settings**.
+> <img width="568" height="533" alt="image" src="https://github.com/user-attachments/assets/a668ac13-b71d-45f1-a17a-080a86a12899" />
 4. Power on the VM.
 
 ---
