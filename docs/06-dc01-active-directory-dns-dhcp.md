@@ -170,12 +170,17 @@ The DNS Server role was installed automatically with AD DS. Two things need expl
  
 1. **Control Panel → Network and Internet → Network Connections** → right-click `Internal-LabNet` → **Properties → Internet Protocol Version 4 (TCP/IPv4) → Properties**.
 2. Set **Preferred DNS server** to `192.168.10.10` (DC01's own address). Leave the alternate blank. **OK**.
+> <img width="294" height="326" alt="image" src="https://github.com/user-attachments/assets/7eb070fa-513b-4d4f-abd7-1300c11b46fa" />
+
 **Add a forwarder for external resolution:**
  
 3. **Server Manager → Tools → DNS**.
+> <img width="1128" height="264" alt="image" src="https://github.com/user-attachments/assets/bf4edf99-147e-4186-9b52-84004ad3cddf" />
 4. In the DNS Manager tree, right-click the server name (`DC01`) → **Properties**.
+> <img width="563" height="377" alt="image" src="https://github.com/user-attachments/assets/9ce72bde-8b80-4089-ae10-892985423074" />
 5. Go to the **Forwarders** tab → **Edit…**.
 6. Add `8.8.8.8` and `1.1.1.1`, one per line → **OK** → **OK**.
+> <img width="391" height="356" alt="image" src="https://github.com/user-attachments/assets/9bf762ab-42f5-4893-9cab-46bb0bc50140" />
 This forwarder is what lets domain-joined machines using DC01 as their resolver still reach the internet — package repositories, and critically, the [external KMS host](../README.md#license-activation) used for Windows activation.
  
 **Verify:**
