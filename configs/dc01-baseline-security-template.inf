@@ -1,0 +1,72 @@
+; dc01-baseline-security-template.inf
+;
+; Security Template for use with the Security Configuration and Analysis MMC
+; snap-in (secedit.exe), applied to DC01 in docs/06-dc01-active-directory-dns-dhcp.md
+; (Step 9 — Hardening baseline).
+;
+; Scope: password policy, account lockout policy, and a small set of common
+; security options appropriate for a lab domain controller. This is intentionally
+; conservative — it does not touch User Rights Assignment beyond a couple of safe,
+; well-known built-in groups, to avoid locking yourself out of a lab environment.
+;
+; Import: MMC > Security Configuration and Analysis > Open Database (new .sdb) >
+; Import Template > select this file > Analyze Computer Now > review > Configure Computer Now.
+;
+; Reference: for a more comprehensive, officially maintained baseline, see Microsoft's
+; Security Compliance Toolkit: https://www.microsoft.com/en-us/download/details.aspx?id=55319
+
+[Unicode]
+Unicode=yes
+
+[Version]
+signature="$CHICAGO$"
+Revision=1
+
+[System Access]
+; Password Policy
+MinimumPasswordAge = 1
+MaximumPasswordAge = 90
+MinimumPasswordLength = 14
+PasswordComplexity = 1
+PasswordHistorySize = 24
+ClearTextPassword = 0
+
+; Account Lockout Policy
+LockoutBadCount = 5
+ResetLockoutCount = 30
+LockoutDuration = 30
+
+; Local account behavior
+EnableAdminAccount = 1
+EnableGuestAccount = 0
+ForceLogoffWhenHourExpire = 1
+LSAAnonymousNameLookup = 0
+
+[Registry Values]
+; Prevent LM hash storage (legacy weak hash format)
+MACHINE\System\CurrentControlSet\Control\Lsa\NoLMHash=4,1
+
+; Disallow blank passwords for local accounts over the network
+MACHINE\System\CurrentControlSet\Control\Lsa\LimitBlankPasswordUse=4,1
+
+; Restrict anonymous enumeration of SAM accounts and shares
+MACHINE\System\CurrentControlSet\Control\Lsa\RestrictAnonymous=4,1
+MACHINE\System\CurrentControlSet\Control\Lsa\RestrictAnonymousSAM=4,1
+
+; Do not allow anonymous to be included in the Everyone security group
+MACHINE\System\CurrentControlSet\Control\Lsa\EveryoneIncludesAnonymous=4,0
+
+; Restrict null session access to named pipes and shares
+MACHINE\System\CurrentControlSet\Services\LanManServer\Parameters\RestrictNullSessAccess=4,1
+
+; Digitally sign SMB communications (server and client) when possible
+MACHINE\System\CurrentControlSet\Services\LanManServer\Parameters\RequireSecuritySignature=4,1
+MACHINE\System\CurrentControlSet\Services\LanmanWorkstation\Parameters\RequireSecuritySignature=4,1
+
+[Privilege Rights]
+; Interactive logon restricted to local Administrators (well-known SID, safe default)
+SeInteractiveLogonRight = *S-1-5-32-544
+
+; Deny network and remote interactive logon for the built-in Guests group (well-known SID)
+SeDenyNetworkLogonRight = *S-1-5-32-546
+SeDenyRemoteInteractiveLogonRight = *S-1-5-32-546

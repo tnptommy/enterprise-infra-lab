@@ -225,6 +225,7 @@ Golden baselines (04–05)
 - All shell/PowerShell commands are in **English**, using fenced code blocks.
 - Every piece of software built or installed **from source** includes a direct download link at the point it is first referenced — no undocumented dependencies.
 - File naming follows `NN-topic-name.md`, where `NN` reflects build order, not importance.
+- **Supporting files**: any file referenced by a build document that isn't just an inline command — security templates, config files, scripts — is committed to this repository under [`configs/`](./configs) rather than left as a "bring your own" placeholder. Each build document links directly to the exact file it uses.
 - **VM naming**: the VMware Workstation VM name (Library display name / `.vmx` folder) always follows `HOST_lastTwoOctets`, using only the last two octets of the IP address (e.g. `DC01_10.10` for `192.168.10.10`) so every VM is identifiable at a glance without opening it. The OS-level hostname (set via `hostnamectl` on Linux or `Rename-Computer` on Windows) uses just `HOST` (e.g. `DC01`) — this is the name used for DNS, domain join, and inside the OS itself. Never mix the two.
 - Any VM provisioned with more than one virtual disk has that disk's purpose explicitly labeled in its build document (never a silent capacity-only disk).
 
