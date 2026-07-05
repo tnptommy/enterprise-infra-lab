@@ -282,18 +282,26 @@ Using the second disk added in [Step 2](#step-2--add-the-storage-spaces-disk):
  
 1. **Server Manager → File and Storage Services → Storage Pools**.
 2. Under **Storage Pools**, click **Tasks → New Storage Pool…**.
+> <img width="1072" height="288" alt="image" src="https://github.com/user-attachments/assets/d27fa52f-bc24-4aa5-a4ed-b4470fb7a522" />
 3. Follow the wizard: Name `DataPool`, select the 40 GB physical disk from the list → **Create**.
 **Create the Virtual Disk:**
  
 4. Right-click the new `DataPool` → **New Virtual Disk…**.
+> <img width="677" height="233" alt="image" src="https://github.com/user-attachments/assets/231288a6-6796-47a4-87c8-85b53775149f" />
 5. Follow the wizard: Name `DataVirtualDisk`, Storage layout **Simple**, Provisioning **Thin** or **Fixed** (Fixed is simpler for a lab), Size **35 GB**.
+> <img width="568" height="431" alt="image" src="https://github.com/user-attachments/assets/2d8ef92b-d276-44d0-ab6f-16b24b2b4ff0" />
+
 **Create the Volume:**
  
 6. The wizard offers to continue directly into the **New Volume Wizard** — accept.
 7. Select the new virtual disk, assign drive letter **D:**, file system **NTFS**, volume label `DataStorage` → **Create**.
+> <img width="571" height="417" alt="image" src="https://github.com/user-attachments/assets/18592d15-41e8-4b16-838f-9c256e273242" />
+
 **Verify:**
  
 8. Open **File Explorer** → confirm `D:` (`DataStorage`) appears with roughly 35 GB capacity.
+> <img width="413" height="153" alt="image" src="https://github.com/user-attachments/assets/e60b049d-4ab5-4134-af57-9a6ae261cf7e" />
+
 **PowerShell equivalent (optional):**
 ```powershell
 Get-Disk
