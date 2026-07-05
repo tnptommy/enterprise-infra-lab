@@ -321,7 +321,12 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
 ## Step 9 — Hardening baseline
  
 1. Run `mmc.exe` → **File → Add/Remove Snap-in → Security Configuration and Analysis → Add → OK**.
+> <img width="832" height="450" alt="image" src="https://github.com/user-attachments/assets/c6feba10-fe2f-435b-bbc2-6bc17d40b630" />
+
+> <img width="587" height="434" alt="image" src="https://github.com/user-attachments/assets/03d3f7a3-8773-4f6b-a550-6a975359310e" />
+
 2. Right-click **Security Configuration and Analysis → Open Database**, create a new database (e.g. `DC01-baseline.sdb`).
+<img width="414" height="308" alt="image" src="https://github.com/user-attachments/assets/2009b8d0-6631-4211-bc60-461319772428" />
 3. Right-click the snap-in again → **Import Template…** → select [`configs/dc01-baseline-security-template.inf`](../configs/dc01-baseline-security-template.inf) from this repository. This template covers password policy, account lockout policy, and a conservative set of security options appropriate for a lab domain controller (see the comments at the top of the file for exactly what it does and doesn't touch).
 4. Right-click the snap-in → **Analyze Computer Now** to compare current settings against the imported template.
 5. Review discrepancies (a red X marks a setting that differs from the template; a green check marks a match), then **Configure Computer Now** to apply the template once you've reviewed what it changes.
