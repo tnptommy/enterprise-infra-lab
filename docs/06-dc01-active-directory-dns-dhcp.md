@@ -114,8 +114,21 @@ New-NetIPAddress -InterfaceAlias "Internal-LabNet" -IPAddress 192.168.10.10 -Pre
 
 1. In **Server Manager** → **Manage → Add Roles and Features**.
 2. Click through: **Before You Begin → Next**, **Installation Type: Role-based or feature-based installation → Next**, **Select destination server: this server → Next**.
+
+> <img width="587" height="420" alt="image" src="https://github.com/user-attachments/assets/43b35524-70f1-4a66-a409-cd6d09cd0407" />
+
+> <img width="587" height="420" alt="image" src="https://github.com/user-attachments/assets/f57563e6-90fb-44ba-aa20-0fb4f557d3ff" />
+
 3. **Server Roles**: check **Active Directory Domain Services**. Accept the prompt to add required management tools/features.
+
+> <img width="589" height="421" alt="image" src="https://github.com/user-attachments/assets/2453c159-9663-4ccd-ae21-3aa26a732285" />
+
+><img width="311" height="326" alt="image" src="https://github.com/user-attachments/assets/c0c05c6e-fdbb-4c33-bde5-a91b269eec86" />
+
 4. **Next** through Features, AD DS intro page, **Confirmation → Install**.
+
+> <img width="589" height="419" alt="image" src="https://github.com/user-attachments/assets/e03ecccb-57c5-4fbe-8f5a-7049b8814632" />
+
 5. Wait for installation to complete. Do **not** close the wizard yet — leave it, or close it and use the notification flag in the next step.
 
 **Promote to a domain controller:**
