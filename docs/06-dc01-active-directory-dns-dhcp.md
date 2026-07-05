@@ -342,9 +342,13 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
  
 7. **Server Manager → Tools → Group Policy Management**.
 8. Expand `corp-lab.com.vn` → **Domain Controllers → Default Domain Controllers Policy** → right-click → **Edit**.
+> <img width="563" height="393" alt="image" src="https://github.com/user-attachments/assets/8ca7bcdd-2aea-4ccb-a405-dc9e4cd36354" />
 9. Navigate to **Computer Configuration → Policies → Windows Settings → Security Settings → Advanced Audit Policy Configuration → Audit Policies**.
 10. Under **Account Logon**, **Logon/Logoff**, and **Object Access**, double-click each subcategory and enable both **Success** and **Failure** auditing.
+> <img width="1130" height="613" alt="image" src="https://github.com/user-attachments/assets/65dfc26d-1e52-42f1-8150-da212e751982" />
 11. Close the Group Policy Management Editor — changes apply automatically on next policy refresh (or run `gpupdate /force` from Command Prompt to apply immediately).
+> <img width="362" height="83" alt="image" src="https://github.com/user-attachments/assets/851d4ca0-a85d-44c6-8e38-6f042a114013" />
+
 ---
  
 ## Step 10 — Remote access configuration
