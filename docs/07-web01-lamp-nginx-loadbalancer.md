@@ -95,6 +95,20 @@ sudo nmcli con mod "Wired connection 1" ipv4.method manual
 sudo nmcli con up "Wired connection 1"
 ```
 
+**Stop NIC 1 (NAT) from polluting DNS resolution** — required before domain-join in Step 7 will work. See the full explanation in [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#rocky-linux-nic-2--host-only):
+ 
+```bash
+nmcli con show
+# identify NIC 1's connection name (commonly matches the device name, e.g. "ens160")
+ 
+sudo nmcli con modify "ens160" ipv4.ignore-auto-dns yes
+sudo nmcli con up "ens160"
+ 
+cat /etc/resolv.conf
+# confirm only 192.168.10.10 remains
+```
+> <img width="239" height="32" alt="image" src="https://github.com/user-attachments/assets/5f142fc3-e536-4a44-bf6f-48eb5bac3761" />
+
 Reconnect PuTTY using the new static IP from here on.
 
 ---
@@ -157,12 +171,14 @@ sudo mkswap /swapfile
 sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
- 
+> <img width="452" height="91" alt="image" src="https://github.com/user-attachments/assets/d9317b78-11fb-450f-8547-572f0cf24bcb" />
+
 Verify:
 ```bash
 swapon --show
 free -h
 ```
+> <img width="486" height="78" alt="image" src="https://github.com/user-attachments/assets/3fd6df87-e243-4f9b-911c-9ac620ce7863" />
  
 WEB01 does not run JVM-based services, so the default `vm.swappiness` (60) is left unchanged — the `swappiness=1` tuning used later for MON01/ELK01/LOG02 is specific to avoiding JVM garbage-collection stalls and doesn't apply here.
  
@@ -175,11 +191,13 @@ Using the 20 GB disk added in Step 1:
 ```bash
 lsblk
 ```
-Confirm the new disk shows up with no existing partitions — it will be named `/dev/sdb` on a SATA/SCSI controller, or `/dev/nvme1n1` on an NVMe controller (the first NVMe disk is `nvme0n1`, so a second one is `nvme1n1`, not `nvme0n2`). Use the actual name from `lsblk` in place of `/dev/sdb` below.
+> <img width="301" height="103" alt="image" src="https://github.com/user-attachments/assets/80b6e631-124c-4b1e-bf81-c37682e7e6c4" />
+
+Confirm the new disk shows up with no existing partitions — it will be named `/dev/sdb` on a SATA/SCSI controller, or `/dev/nvme1n1` on an NVMe controller (the first NVMe disk is `nvme0n1`, so a second one is `nvme0n2`). Use the actual name from `lsblk` in place of `/dev/nvme0n2 ` below.
  
 ```bash
-sudo pvcreate /dev/sdb
-sudo vgcreate vg_data /dev/sdb
+sudo pvcreate /dev/nvme0n2 
+sudo vgcreate vg_data /dev/nvme0n2 
 sudo lvcreate -L 15G -n lv_web vg_data
 sudo mkfs.xfs /dev/vg_data/lv_web
  
@@ -192,6 +210,7 @@ Verify:
 ```bash
 df -h /mnt/webdata
 ```
+> <img width="511" height="441" alt="image" src="https://github.com/user-attachments/assets/86b751f2-ca72-49b5-8244-3b22cf4b3d97" />
  
 This volume isn't used by any specific service in this guide — it stands as a self-contained demonstration of LVM (physical volume → volume group → logical volume → filesystem → mount), separate from the OS disk.
  
@@ -218,25 +237,28 @@ Verify:
 ```bash
 showmount -e localhost
 ```
+> <img width="236" height="35" alt="image" src="https://github.com/user-attachments/assets/16f0793d-f2bd-42bc-ba2b-33736e7f411e" />
  
 ---
  
 ## Step 7 — Domain-join to corp-lab.com.vn
  
 ```bash
-sudo dnf install -y realmd sssd adcli krb5-workstation samba-common-tools oddjob oddjob-mkhomedir
+sudo dnf install -y realmd sssd-common sssd-ad adcli krb5-workstation samba-common-tools oddjob oddjob-mkhomedir
  
 sudo realm discover corp-lab.com.vn
 sudo realm join -U administrator corp-lab.com.vn
 ```
 Enter the `CORP-LAB\Administrator` password from [KeePass](./03-remote-access-tooling-setup.md#keepass) when prompted.
- 
+> <img width="361" height="176" alt="image" src="https://github.com/user-attachments/assets/4f2bb4ec-34ec-431d-9eea-322dc236116b" />
+
 Verify:
 ```bash
 realm list
 id administrator@corp-lab.com.vn
 ```
- 
+> <img width="1034" height="220" alt="image" src="https://github.com/user-attachments/assets/e78189f4-cf64-4292-b108-6f3522f2864d" />
+
 ---
  
 ## Step 8 — Build MariaDB from source
