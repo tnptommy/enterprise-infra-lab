@@ -20,6 +20,7 @@ Every step below is written **GUI-first** — Server Manager wizards, MMC snap-i
 - [Step 9 — Hardening baseline](#step-9--hardening-baseline)
 - [Step 10 — Remote access configuration](#step-10--remote-access-configuration)
 - [Step 11 — OU structure and baseline GPOs](#step-11--ou-structure-and-baseline-gpos)
+- [Step 12 — Final verification checklist](#step-12--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -75,20 +76,23 @@ Follow [`04-golden-baseline-windows-server-2025.md`'s cloning instructions](./04
 
 6. After reboot, open **Control Panel → Network and Internet → Network and Sharing Center → Change adapter settings** (or right-click the network icon in the system tray → **Open Network & Internet settings → Advanced network settings → More network adapter options**).
 7. Two adapters are listed. Identify NIC 2 (Host-only) by opening each one's **Status → Details** — NIC 1 (NAT) shows a DHCP-assigned address in VMnet8's range; NIC 2 (Host-only) shows either an APIPA (`169.254.x.x`) address or a Host-only DHCP address, per [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#configuring-the-virtual-network-editor-windows-host).
-8. Right-click NIC 2 → **Properties** → select **Internet Protocol Version 4 (TCP/IPv4)** → **Properties**.
-9. Select **Use the following IP address**:
+8. **Rename both adapters for clarity** before continuing — right-click each → **Rename**: call the NAT one `NAT-Internet` and the Host-only one `Internal-LabNet`. Every later step and every other Windows VM's build document (WINAPP01, CLIENT01) refers to adapters by these same two names, so keeping them consistent now avoids ambiguity later.
+9. Right-click `Internal-LabNet` → **Properties** → select **Internet Protocol Version 4 (TCP/IPv4)** → **Properties**.
+10. Select **Use the following IP address**:
    - IP address: `192.168.10.10`
    - Subnet mask: `255.255.255.0`
    - Default gateway: *(leave blank — per the [dual-interface design](./02-network-architecture-planning.md#design-overview), internet traffic goes out NIC 1, not NIC 2)*
-10. Leave DNS server fields blank for now — [Step 5](#step-5--configure-dns) sets this explicitly once DNS is installed.
-11. Click **OK**, close the dialogs.
+11. Leave DNS server fields blank for now — [Step 5](#step-5--configure-dns) sets this explicitly once DNS is installed.
+12. Click **OK**, close the dialogs.
 
 **PowerShell equivalent (optional):**
 ```powershell
 Rename-Computer -NewName "DC01" -Restart
 # after reboot:
 Get-NetAdapter
-New-NetIPAddress -InterfaceAlias "Ethernet1" -IPAddress 192.168.10.10 -PrefixLength 24
+Rename-NetAdapter -Name "Ethernet0" -NewName "NAT-Internet"
+Rename-NetAdapter -Name "Ethernet1" -NewName "Internal-LabNet"
+New-NetIPAddress -InterfaceAlias "Internal-LabNet" -IPAddress 192.168.10.10 -PrefixLength 24
 ```
 
 ---
@@ -136,9 +140,9 @@ Install-ADDSForest `
 
 The DNS Server role was installed automatically with AD DS. Two things need explicit configuration: NIC 2's own DNS resolver setting, and a forwarder for external name resolution.
 
-**Point NIC 2 at itself for DNS:**
+**Point `Internal-LabNet` at itself for DNS:**
 
-1. **Control Panel → Network and Internet → Network Connections** → right-click NIC 2 → **Properties → Internet Protocol Version 4 (TCP/IPv4) → Properties**.
+1. **Control Panel → Network and Internet → Network Connections** → right-click `Internal-LabNet` → **Properties → Internet Protocol Version 4 (TCP/IPv4) → Properties**.
 2. Set **Preferred DNS server** to `192.168.10.10` (DC01's own address). Leave the alternate blank. **OK**.
 
 **Add a forwarder for external resolution:**
@@ -161,7 +165,7 @@ Both should resolve successfully. If either fails, confirm NIC 1 (NAT) still has
 
 **PowerShell equivalent (optional):**
 ```powershell
-Set-DnsClientServerAddress -InterfaceAlias "Ethernet1" -ServerAddresses 192.168.10.10
+Set-DnsClientServerAddress -InterfaceAlias "Internal-LabNet" -ServerAddresses 192.168.10.10
 Add-DnsServerForwarder -IPAddress 8.8.8.8, 1.1.1.1
 Resolve-DnsName active.orientsoftware.asia
 ```
@@ -274,6 +278,9 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
 3. Right-click the snap-in again → **Import Template…** → select [`configs/dc01-baseline-security-template.inf`](../configs/dc01-baseline-security-template.inf) from this repository. This template covers password policy, account lockout policy, and a conservative set of security options appropriate for a lab domain controller (see the comments at the top of the file for exactly what it does and doesn't touch).
 4. Right-click the snap-in → **Analyze Computer Now** to compare current settings against the imported template.
 5. Review discrepancies (a red X marks a setting that differs from the template; a green check marks a match), then **Configure Computer Now** to apply the template once you've reviewed what it changes.
+6. Review the applied log if needed: **%windir%\security\logs\scesrv.log**.
+
+> **Important caveat for a domain controller:** Password Policy and Account Lockout Policy settings from this local template can be **overridden by domain-level Group Policy** — specifically the **Default Domain Policy**, which Windows applies on top of local security settings for any domain-joined machine, including the DC itself. If `secedit`/this snap-in shows the template applied successfully but `net accounts` later reports different effective values, the Default Domain Policy is taking precedence, which is expected AD behavior, not a fault in this template. To make password/lockout policy authoritative domain-wide, those settings ultimately belong in **Default Domain Policy** (Group Policy Management → `corp.com` → Default Domain Policy) rather than only in this local template — this local baseline still matters for the other security options (registry values, privilege rights) that aren't controlled by Default Domain Policy.
 
 > Looking for something more comprehensive than this lab's minimal template? Microsoft publishes an official, far more thorough set of baselines for free — the [Security Compliance Toolkit](https://www.microsoft.com/en-us/download/details.aspx?id=55319) — which can be imported the same way in place of the file above.
 
@@ -340,6 +347,41 @@ New-GPO -Name "Baseline-Policy"
 New-GPLink -Name "Baseline-Policy" -Target "OU=Servers,DC=corp,DC=com"
 New-GPLink -Name "Baseline-Policy" -Target "OU=Workstations,DC=corp,DC=com"
 ```
+
+---
+
+## Step 12 — Final verification checklist
+
+Before treating DC01 as complete and moving on to build other VMs, run this consolidated set of checks — catching a misconfiguration now is far cheaper than discovering it after WINAPP01 or CLIENT01 depend on it.
+
+1. **Active Directory health** — open an elevated Command Prompt:
+```
+dcdiag
+```
+Scan the output for any line reading `... failed test ...`. A clean run shows every test passing.
+
+2. **DNS resolving both internally and externally** — open Command Prompt:
+```
+nslookup dc01.corp.com
+nslookup active.orientsoftware.asia
+```
+The first confirms internal DNS is authoritative for the domain; the second confirms the forwarder from [Step 5](#step-5--configure-dns) still works.
+
+3. **DHCP is authorized and scope is active** — **Server Manager → Tools → DHCP** → expand `dc01.corp.com` → **IPv4** → confirm a green up-arrow icon (authorized) and that the `Clients` scope shows **Active**.
+
+4. **NTP is synced to an external source** — Command Prompt:
+```
+w32tm /query /status
+```
+Confirm `Source:` is not `Local CMOS Clock`.
+
+5. **Storage Spaces volume is healthy** — **File Explorer** → confirm `D:` (`DataStorage`) is present and accessible.
+
+6. **Remote access works end-to-end** — from the host machine, connect via the `DC01_10.10` entry in [mRemoteNG](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) and confirm a successful RDP session on port 3389.
+
+7. **Credentials are stored, not memorized** — confirm the local Administrator password, the domain Administrator password, and the DSRM password are all saved in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `DC01_10.10` group before moving on.
+
+If all seven checks pass, DC01 is ready to serve as the foundation for the rest of this lab.
 
 ---
 
