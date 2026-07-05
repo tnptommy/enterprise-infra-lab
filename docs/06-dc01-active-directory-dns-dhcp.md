@@ -190,6 +190,7 @@ This forwarder is what lets domain-joined machines using DC01 as their resolver 
 nslookup active.orientsoftware.asia
 nslookup rockylinux.org
 ```
+> <img width="537" height="309" alt="image" src="https://github.com/user-attachments/assets/29930883-a8d4-4c8c-97c7-83d1880c1285" />
 Both should resolve successfully. If either fails, confirm NIC 1 (NAT) still has working internet connectivity independent of NIC 2 — DNS forwarding relies on DC01 itself being able to reach `8.8.8.8`/`1.1.1.1` over NIC 1.
  
 **PowerShell equivalent (optional):**
