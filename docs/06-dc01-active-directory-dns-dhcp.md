@@ -356,14 +356,20 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
 **Confirm RDP is enabled** (enabled by default on Windows Server, verify rather than assume):
  
 1. **Server Manager → Local Server** → check the **Remote Desktop** value — should read **Enabled**. If not, click it and enable **Allow remote connections to this computer**.
+> <img width="301" height="352" alt="image" src="https://github.com/user-attachments/assets/eaf1d65b-4009-45d2-8685-66a001f3b105" />
 2. Enabling Remote Desktop this way automatically enables the built-in **Remote Desktop** rule group in Windows Defender Firewall — no separate firewall rule is needed. Confirm it's active:
    - **Control Panel → System and Security → Windows Defender Firewall → Advanced Settings** (or run `wf.msc`) → **Inbound Rules** → look for **Remote Desktop - User Mode (TCP-In)** showing **Enabled: Yes**.
+
+     > <img width="560" height="170" alt="image" src="https://github.com/user-attachments/assets/f3243f77-afdd-4379-a527-4a35c9dba28b" />
+
 This lab keeps RDP on its default port (**3389**) rather than moving it to a custom port — no further action is needed here, and the [mRemoteNG connection](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) for `DC01_10.10` can stay on port 3389 as originally configured.
  
 **(Optional) Disable IPv6:**
  
 3. **Network Connections** → right-click each adapter → **Properties** → uncheck **Internet Protocol Version 6 (TCP/IPv6)** → **OK**.
 **PowerShell equivalent (optional):**
+  > <img width="266" height="351" alt="image" src="https://github.com/user-attachments/assets/c4992291-6081-46de-96e8-785e5311605b" />
+
 ```powershell
 Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections"
 # Expect 0 (RDP allowed)
@@ -378,15 +384,23 @@ Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, 
  
 1. **Server Manager → Tools → Active Directory Users and Computers**.
 2. Right-click `corp-lab.com.vn` → **New → Organizational Unit**.
+> <img width="644" height="396" alt="image" src="https://github.com/user-attachments/assets/ae370fe6-7188-47e4-93a2-e85eb35fcfbb" />
 3. Create four OUs one at a time: `Servers`, `Workstations`, `ServiceAccounts`, `Users` (uncheck "Protect container from accidental deletion" only if you're comfortable with that — leaving it checked is the safer default).
+> <img width="557" height="226" alt="image" src="https://github.com/user-attachments/assets/7e018002-be8b-4026-8baa-d60e6c70fddc" />
+
 **Create a baseline GPO:**
  
 4. **Server Manager → Tools → Group Policy Management**.
 5. Expand `corp-lab.com.vn` → right-click **Group Policy Objects → New**.
+> <img width="565" height="398" alt="image" src="https://github.com/user-attachments/assets/45d673c6-ec02-4f48-8e11-d52845fa3856" />
 6. Name: `Baseline-Policy` → **OK**. Leave it unlinked and unpopulated for now — it's configured further in [`10-gpo-wsus-client-policy.md`](./10-gpo-wsus-client-policy.md) once WSUS exists.
+> <img width="563" height="393" alt="image" src="https://github.com/user-attachments/assets/2824294e-d6c3-4c05-9d6f-1f5a3c70578c" />
 **Link it to the Servers and Workstations OUs:**
  
 7. Right-click **Servers** OU → **Link an Existing GPO…** → select `Baseline-Policy` → **OK**.
+> <img width="564" height="394" alt="image" src="https://github.com/user-attachments/assets/f5b167d8-a8a2-466d-b296-4f5a9d375823" />
+
+> <img width="335" height="327" alt="image" src="https://github.com/user-attachments/assets/08b2a6a9-da24-41a7-846f-4637f1292a41" />
 8. Repeat for the **Workstations** OU.
 **PowerShell equivalent (optional):**
 ```powershell
