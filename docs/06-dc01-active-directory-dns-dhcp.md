@@ -326,10 +326,13 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
 > <img width="587" height="434" alt="image" src="https://github.com/user-attachments/assets/03d3f7a3-8773-4f6b-a550-6a975359310e" />
 
 2. Right-click **Security Configuration and Analysis → Open Database**, create a new database (e.g. `DC01-baseline.sdb`).
-<img width="414" height="308" alt="image" src="https://github.com/user-attachments/assets/2009b8d0-6631-4211-bc60-461319772428" />
+> <img width="414" height="308" alt="image" src="https://github.com/user-attachments/assets/2009b8d0-6631-4211-bc60-461319772428" />
 3. Right-click the snap-in again → **Import Template…** → select [`configs/dc01-baseline-security-template.inf`](../configs/dc01-baseline-security-template.inf) from this repository. This template covers password policy, account lockout policy, and a conservative set of security options appropriate for a lab domain controller (see the comments at the top of the file for exactly what it does and doesn't touch).
+> <img width="416" height="310" alt="image" src="https://github.com/user-attachments/assets/406bdae3-4e0d-46cb-ad78-c3859dbc998e" />
 4. Right-click the snap-in → **Analyze Computer Now** to compare current settings against the imported template.
+> <img width="581" height="196" alt="image" src="https://github.com/user-attachments/assets/9d175dc9-2cb4-4511-b6b9-2d21c8371489" />
 5. Review discrepancies (a red X marks a setting that differs from the template; a green check marks a match), then **Configure Computer Now** to apply the template once you've reviewed what it changes.
+> <img width="607" height="317" alt="image" src="https://github.com/user-attachments/assets/c422fea3-aa94-413a-975f-e477f9b3418d" />
 6. Review the applied log if needed: **%windir%\security\logs\scesrv.log**.
 > **Important caveat for a domain controller:** Password Policy and Account Lockout Policy settings from this local template can be **overridden by domain-level Group Policy** — specifically the **Default Domain Policy**, which Windows applies on top of local security settings for any domain-joined machine, including the DC itself. If `secedit`/this snap-in shows the template applied successfully but `net accounts` later reports different effective values, the Default Domain Policy is taking precedence, which is expected AD behavior, not a fault in this template. To make password/lockout policy authoritative domain-wide, those settings ultimately belong in **Default Domain Policy** (Group Policy Management → `corp-lab.com.vn` → Default Domain Policy) rather than only in this local template — this local baseline still matters for the other security options (registry values, privilege rights) that aren't controlled by Default Domain Policy.
  
@@ -337,11 +340,11 @@ Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -Pa
  
 **Baseline audit policy** — instead of `auditpol` at the command line, this is configured through Group Policy on a domain controller:
  
-5. **Server Manager → Tools → Group Policy Management**.
-6. Expand `corp-lab.com.vn` → **Domain Controllers → Default Domain Controllers Policy** → right-click → **Edit**.
-7. Navigate to **Computer Configuration → Policies → Windows Settings → Security Settings → Advanced Audit Policy Configuration → Audit Policies**.
-8. Under **Account Logon**, **Logon/Logoff**, and **Object Access**, double-click each subcategory and enable both **Success** and **Failure** auditing.
-9. Close the Group Policy Management Editor — changes apply automatically on next policy refresh (or run `gpupdate /force` from Command Prompt to apply immediately).
+7. **Server Manager → Tools → Group Policy Management**.
+8. Expand `corp-lab.com.vn` → **Domain Controllers → Default Domain Controllers Policy** → right-click → **Edit**.
+9. Navigate to **Computer Configuration → Policies → Windows Settings → Security Settings → Advanced Audit Policy Configuration → Audit Policies**.
+10. Under **Account Logon**, **Logon/Logoff**, and **Object Access**, double-click each subcategory and enable both **Success** and **Failure** auditing.
+11. Close the Group Policy Management Editor — changes apply automatically on next policy refresh (or run `gpupdate /force` from Command Prompt to apply immediately).
 ---
  
 ## Step 10 — Remote access configuration
