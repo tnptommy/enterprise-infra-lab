@@ -68,23 +68,31 @@ Follow [`04-golden-baseline-windows-server-2025.md`'s cloning instructions](./04
 
 1. Log in with the local Administrator account (set during golden baseline OOBE per [`04`](./04-golden-baseline-windows-server-2025.md#cloning-this-baseline-later)).
 
-**Set the hostname** — **`HOST` only, no IP suffix**, per the [naming convention](./02-network-architecture-planning.md#vm-and-hostname-naming-convention):
+   **Set the hostname** — **`HOST` only, no IP suffix**, per the [naming convention](./02-network-architecture-planning.md#vm-and-hostname-naming-convention):
 
 2. Open **Server Manager** (opens automatically at login) → **Local Server** in the left pane.
 3. Click the current computer name next to **Computer name**.
+> <img width="1130" height="362" alt="image" src="https://github.com/user-attachments/assets/1b76fd76-6d02-4ff1-ac0e-cb81060f0c4f" />
 4. In the **System Properties** dialog, click **Change…**.
+> <img width="302" height="353" alt="image" src="https://github.com/user-attachments/assets/e48be847-fc75-4e76-9d9d-1929e0123fa8" />
 5. Enter `DC01` under **Computer name**, click **OK**, then **OK** again, then **Restart Now** when prompted.
+> <img width="241" height="299" alt="image" src="https://github.com/user-attachments/assets/a88b9d2e-943d-4b6d-ab87-7cd76acc5888" />
+
 
 **Assign the static IP to NIC 2 (Host-only):**
 
 6. After reboot, open **Control Panel → Network and Internet → Network and Sharing Center → Change adapter settings** (or right-click the network icon in the system tray → **Open Network & Internet settings → Advanced network settings → More network adapter options**).
 7. Two adapters are listed. Identify NIC 2 (Host-only) by opening each one's **Status → Details** — NIC 1 (NAT) shows a DHCP-assigned address in VMnet8's range; NIC 2 (Host-only) shows either an APIPA (`169.254.x.x`) address or a Host-only DHCP address, per [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#configuring-the-virtual-network-editor-windows-host).
 8. **Rename both adapters for clarity** before continuing — right-click each → **Rename**: call the NAT one `NAT-Internet` and the Host-only one `Internal-LabNet`. Every later step and every other Windows VM's build document (WINAPP01, CLIENT01) refers to adapters by these same two names, so keeping them consistent now avoids ambiguity later.
+> <img width="419" height="145" alt="image" src="https://github.com/user-attachments/assets/7ece6609-d6e3-4fe2-af15-033754746d65" />
 9. Right-click `Internal-LabNet` → **Properties** → select **Internet Protocol Version 4 (TCP/IPv4)** → **Properties**.
 10. Select **Use the following IP address**:
    - IP address: `192.168.10.10`
    - Subnet mask: `255.255.255.0`
    - Default gateway: *(leave blank — per the [dual-interface design](./02-network-architecture-planning.md#design-overview), internet traffic goes out NIC 1, not NIC 2)*
+
+      > <img width="295" height="326" alt="image" src="https://github.com/user-attachments/assets/d6cc50ca-94c0-427c-aaed-7ebbc276022c" />
+
 11. Leave DNS server fields blank for now — [Step 5](#step-5--configure-dns) sets this explicitly once DNS is installed.
 12. Click **OK**, close the dialogs.
 
