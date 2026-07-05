@@ -268,6 +268,7 @@ Verify:
 ```
 w32tm /query /status
 ```
+> <img width="382" height="161" alt="image" src="https://github.com/user-attachments/assets/90faecef-04f0-4160-b574-79454abfbfee" />
 Look for `Source:` showing one of the configured peers rather than `Local CMOS Clock`.
  
 Every other domain-joined machine in this lab (WINAPP01, CLIENT01, and any domain-joined Linux VM) will automatically sync its time from DC01 via the domain hierarchy once joined — no separate NTP configuration is needed on those machines.
@@ -433,13 +434,18 @@ nslookup active.orientsoftware.asia
 The first confirms internal DNS is authoritative for the domain; the second confirms the forwarder from [Step 5](#step-5--configure-dns) still works.
  
 3. **DHCP is authorized and scope is active** — **Server Manager → Tools → DHCP** → expand `dc01.corp-lab.com.vn` → **IPv4** → confirm a green up-arrow icon (authorized) and that the `Clients` scope shows **Active**.
+> <img width="472" height="239" alt="image" src="https://github.com/user-attachments/assets/56ba22f2-e9bb-4b20-8be2-0ea48b0fef07" />
+
 4. **NTP is synced to an external source** — Command Prompt:
 ```
 w32tm /query /status
 ```
+> <img width="382" height="161" alt="image" src="https://github.com/user-attachments/assets/90faecef-04f0-4160-b574-79454abfbfee" />
+
 Confirm `Source:` is not `Local CMOS Clock`.
  
 5. **Storage Spaces volume is healthy** — **File Explorer** → confirm `D:` (`DataStorage`) is present and accessible.
+> <img width="578" height="393" alt="image" src="https://github.com/user-attachments/assets/c57c58a5-8e43-4d19-b6a6-ed441b7f7e87" />
 6. **Remote access works end-to-end** — from the host machine, connect via the `DC01_10.10` entry in [mRemoteNG](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) and confirm a successful RDP session on port 3389.
 7. **Credentials are stored, not memorized** — confirm the local Administrator password, the domain Administrator password, and the DSRM password are all saved in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `DC01_10.10` group before moving on.
 If all seven checks pass, DC01 is ready to serve as the foundation for the rest of this lab.
