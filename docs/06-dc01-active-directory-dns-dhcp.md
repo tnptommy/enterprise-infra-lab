@@ -91,7 +91,7 @@ Follow [`04-golden-baseline-windows-server-2025.md`'s cloning instructions](./04
    - Subnet mask: `255.255.255.0`
    - Default gateway: *(leave blank — per the [dual-interface design](./02-network-architecture-planning.md#design-overview), internet traffic goes out NIC 1, not NIC 2)*
 
-      > <img width="295" height="326" alt="image" src="https://github.com/user-attachments/assets/d6cc50ca-94c0-427c-aaed-7ebbc276022c" />
+     > <img width="295" height="326" alt="image" src="https://github.com/user-attachments/assets/d6cc50ca-94c0-427c-aaed-7ebbc276022c" />
 
 11. Leave DNS server fields blank for now — [Step 5](#step-5--configure-dns) sets this explicitly once DNS is installed.
 12. Click **OK**, close the dialogs.
