@@ -183,7 +183,7 @@ Resolve-DnsName active.orientsoftware.asia
 3. **Server Manager → Tools → DHCP**.
 4. Expand `dc01.corp.com` → right-click **IPv4** → **New Scope…**.
 5. Follow the wizard:
-   - Name: `Lab-Clients`
+   - Name: `Clients`
    - Start IP: `192.168.10.100`, End IP: `192.168.10.200`, Subnet mask: `255.255.255.0` (matches the reserved DHCP range from [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#ip-allocation-table))
    - Exclusions/delay: none needed
    - Lease duration: default is fine
@@ -198,7 +198,7 @@ Resolve-DnsName active.orientsoftware.asia
 ```powershell
 Install-WindowsFeature DHCP -IncludeManagementTools
 Add-DhcpServerInDC -DnsName "DC01.corp.com" -IPAddress 192.168.10.10
-Add-DhcpServerv4Scope -Name "Lab-Clients" -StartRange 192.168.10.100 -EndRange 192.168.10.200 -SubnetMask 255.255.255.0 -State Active
+Add-DhcpServerv4Scope -Name "Clients" -StartRange 192.168.10.100 -EndRange 192.168.10.200 -SubnetMask 255.255.255.0 -State Active
 Set-DhcpServerv4OptionValue -ScopeId 192.168.10.0 -DnsServer 192.168.10.10 -DnsDomain "corp.com"
 ```
 
@@ -235,30 +235,30 @@ Using the second disk added in [Step 2](#step-2--add-the-storage-spaces-disk):
 
 1. **Server Manager → File and Storage Services → Storage Pools**.
 2. Under **Storage Pools**, click **Tasks → New Storage Pool…**.
-3. Follow the wizard: Name `LabPool`, select the 40 GB physical disk from the list → **Create**.
+3. Follow the wizard: Name `DataPool`, select the 40 GB physical disk from the list → **Create**.
 
 **Create the Virtual Disk:**
 
-4. Right-click the new `LabPool` → **New Virtual Disk…**.
-5. Follow the wizard: Name `LabVirtualDisk`, Storage layout **Simple**, Provisioning **Thin** or **Fixed** (Fixed is simpler for a lab), Size **35 GB**.
+4. Right-click the new `DataPool` → **New Virtual Disk…**.
+5. Follow the wizard: Name `DataVirtualDisk`, Storage layout **Simple**, Provisioning **Thin** or **Fixed** (Fixed is simpler for a lab), Size **35 GB**.
 
 **Create the Volume:**
 
 6. The wizard offers to continue directly into the **New Volume Wizard** — accept.
-7. Select the new virtual disk, assign drive letter **D:**, file system **NTFS**, volume label `LabStorage` → **Create**.
+7. Select the new virtual disk, assign drive letter **D:**, file system **NTFS**, volume label `DataStorage` → **Create**.
 
 **Verify:**
 
-8. Open **File Explorer** → confirm `D:` (`LabStorage`) appears with roughly 35 GB capacity.
+8. Open **File Explorer** → confirm `D:` (`DataStorage`) appears with roughly 35 GB capacity.
 
 **PowerShell equivalent (optional):**
 ```powershell
 Get-Disk
 Initialize-Disk -Number 1 -PartitionStyle GPT
 $disk = Get-PhysicalDisk | Where-Object { $_.Size -eq 40GB }
-New-StoragePool -FriendlyName "LabPool" -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $disk
-New-VirtualDisk -StoragePoolFriendlyName "LabPool" -FriendlyName "LabVirtualDisk" -Size 35GB -ResiliencySettingName Simple
-Get-VirtualDisk -FriendlyName "LabVirtualDisk" | Get-Disk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -DriveLetter D -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel "LabStorage" -Confirm:$false
+New-StoragePool -FriendlyName "DataPool" -StorageSubsystemFriendlyName "Windows Storage*" -PhysicalDisks $disk
+New-VirtualDisk -StoragePoolFriendlyName "DataPool" -FriendlyName "DataVirtualDisk" -Size 35GB -ResiliencySettingName Simple
+Get-VirtualDisk -FriendlyName "DataVirtualDisk" | Get-Disk | Initialize-Disk -PartitionStyle GPT -PassThru | New-Partition -DriveLetter D -UseMaximumSize | Format-Volume -FileSystem NTFS -NewFileSystemLabel "DataStorage" -Confirm:$false
 ```
 
 ---
@@ -293,36 +293,20 @@ Get-VirtualDisk -FriendlyName "LabVirtualDisk" | Get-Disk | Initialize-Disk -Par
 
 1. **Server Manager → Local Server** → check the **Remote Desktop** value — should read **Enabled**. If not, click it and enable **Allow remote connections to this computer**.
 
-**Change the RDP listening port from the default 3389 to 9765:**
+2. Enabling Remote Desktop this way automatically enables the built-in **Remote Desktop** rule group in Windows Defender Firewall — no separate firewall rule is needed. Confirm it's active:
+   - **Control Panel → System and Security → Windows Defender Firewall → Advanced Settings** (or run `wf.msc`) → **Inbound Rules** → look for **Remote Desktop - User Mode (TCP-In)** showing **Enabled: Yes**.
 
-2. Run `regedit.exe`.
-3. Navigate to:
-```
-HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp
-```
-4. Double-click **PortNumber**, switch the base to **Decimal**, enter `9765`, **OK**.
-
-**Add a firewall rule for the new port:**
-
-5. **Control Panel → System and Security → Windows Defender Firewall → Advanced Settings** (or run `wf.msc`).
-6. **Inbound Rules → New Rule…**
-7. Rule Type: **Port** → **Next**. Protocol **TCP**, Specific local ports: `9765` → **Next**. **Allow the connection** → **Next**. Apply to all profiles → **Next**. Name: `RDP-Custom-9765` → **Finish**.
-
-**Restart the Remote Desktop service:**
-
-8. Open **Services** (`services.msc`), find **Remote Desktop Services**, right-click → **Restart**.
-
-9. Update the saved connection in [mRemoteNG](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) for `DC01_10.10` — change its port from `3389` to `9765`, since the default RDP port no longer listens.
+This lab keeps RDP on its default port (**3389**) rather than moving it to a custom port — no further action is needed here, and the [mRemoteNG connection](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) for `DC01_10.10` can stay on port 3389 as originally configured.
 
 **(Optional) Disable IPv6:**
 
-10. **Network Connections** → right-click each adapter → **Properties** → uncheck **Internet Protocol Version 6 (TCP/IPv6)** → **OK**.
+3. **Network Connections** → right-click each adapter → **Properties** → uncheck **Internet Protocol Version 6 (TCP/IPv6)** → **OK**.
 
 **PowerShell equivalent (optional):**
 ```powershell
-Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "PortNumber" -Value 9765
-New-NetFirewallRule -DisplayName "RDP-Custom-9765" -Direction Inbound -Protocol TCP -LocalPort 9765 -Action Allow
-Restart-Service TermService -Force
+Get-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections"
+# Expect 0 (RDP allowed)
+Get-NetFirewallRule -DisplayGroup "Remote Desktop" | Select-Object DisplayName, Enabled
 ```
 
 ---
@@ -333,17 +317,17 @@ Restart-Service TermService -Force
 
 1. **Server Manager → Tools → Active Directory Users and Computers**.
 2. Right-click `corp.com` → **New → Organizational Unit**.
-3. Create four OUs one at a time: `Servers`, `Workstations`, `ServiceAccounts`, `LabUsers` (uncheck "Protect container from accidental deletion" only if you're comfortable with that — leaving it checked is the safer default).
+3. Create four OUs one at a time: `Servers`, `Workstations`, `ServiceAccounts`, `Users` (uncheck "Protect container from accidental deletion" only if you're comfortable with that — leaving it checked is the safer default).
 
 **Create a baseline GPO:**
 
 4. **Server Manager → Tools → Group Policy Management**.
 5. Expand `corp.com` → right-click **Group Policy Objects → New**.
-6. Name: `Lab-Baseline-Policy` → **OK**. Leave it unlinked and unpopulated for now — it's configured further in [`10-gpo-wsus-client-policy.md`](./10-gpo-wsus-client-policy.md) once WSUS exists.
+6. Name: `Baseline-Policy` → **OK**. Leave it unlinked and unpopulated for now — it's configured further in [`10-gpo-wsus-client-policy.md`](./10-gpo-wsus-client-policy.md) once WSUS exists.
 
 **Link it to the Servers and Workstations OUs:**
 
-7. Right-click **Servers** OU → **Link an Existing GPO…** → select `Lab-Baseline-Policy` → **OK**.
+7. Right-click **Servers** OU → **Link an Existing GPO…** → select `Baseline-Policy` → **OK**.
 8. Repeat for the **Workstations** OU.
 
 **PowerShell equivalent (optional):**
@@ -351,10 +335,10 @@ Restart-Service TermService -Force
 New-ADOrganizationalUnit -Name "Servers" -Path "DC=corp,DC=com"
 New-ADOrganizationalUnit -Name "Workstations" -Path "DC=corp,DC=com"
 New-ADOrganizationalUnit -Name "ServiceAccounts" -Path "DC=corp,DC=com"
-New-ADOrganizationalUnit -Name "LabUsers" -Path "DC=corp,DC=com"
-New-GPO -Name "Lab-Baseline-Policy"
-New-GPLink -Name "Lab-Baseline-Policy" -Target "OU=Servers,DC=corp,DC=com"
-New-GPLink -Name "Lab-Baseline-Policy" -Target "OU=Workstations,DC=corp,DC=com"
+New-ADOrganizationalUnit -Name "Users" -Path "DC=corp,DC=com"
+New-GPO -Name "Baseline-Policy"
+New-GPLink -Name "Baseline-Policy" -Target "OU=Servers,DC=corp,DC=com"
+New-GPLink -Name "Baseline-Policy" -Target "OU=Workstations,DC=corp,DC=com"
 ```
 
 ---
