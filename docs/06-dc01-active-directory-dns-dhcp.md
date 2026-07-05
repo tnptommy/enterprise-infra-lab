@@ -173,20 +173,28 @@ The DNS Server role was installed automatically with AD DS. Two things need expl
 2. Set **Preferred DNS server** to `192.168.10.10` (DC01's own address). Leave the alternate blank. **OK**.
 > <img width="294" height="326" alt="image" src="https://github.com/user-attachments/assets/7eb070fa-513b-4d4f-abd7-1300c11b46fa" />
 
+**Stop `NAT-Internet` from registering itself in DNS** — by default, Windows registers *every* active adapter's address under the domain zone via Dynamic DNS updates. Left unchecked, DC01's own NAT-assigned address ends up as a second, spurious `A` record for `dc01.corp-lab.com.vn` alongside the correct `192.168.10.10` one — any client that happens to receive the NAT address instead of the internal one will fail to reach DC01 at all:
+ 
+3. **Network Connections** → right-click `NAT-Internet` → **Properties** → **Internet Protocol Version 4 (TCP/IPv4)** → **Properties** → **Advanced…** → **DNS** tab.
+4. Uncheck **Register this connection's addresses in DNS**. **OK** through the dialogs.
+> <img width="293" height="347" alt="image" src="https://github.com/user-attachments/assets/fe001284-39c8-43d7-acb7-8db16fff41bb" />
+
 **Add a forwarder for external resolution:**
  
-3. **Server Manager → Tools → DNS**.
+5. **Server Manager → Tools → DNS**.
 > <img width="1128" height="264" alt="image" src="https://github.com/user-attachments/assets/bf4edf99-147e-4186-9b52-84004ad3cddf" />
-4. In the DNS Manager tree, right-click the server name (`DC01`) → **Properties**.
+6. In the DNS Manager tree, right-click the server name (`DC01`) → **Properties**.
 > <img width="563" height="377" alt="image" src="https://github.com/user-attachments/assets/9ce72bde-8b80-4089-ae10-892985423074" />
-5. Go to the **Forwarders** tab → **Edit…**.
-6. Add `8.8.8.8` and `1.1.1.1`, one per line → **OK** → **OK**.
+7. Go to the **Forwarders** tab → **Edit…**.
+8. Add `8.8.8.8` and `1.1.1.1`, one per line → **OK** → **OK**.
 > <img width="391" height="356" alt="image" src="https://github.com/user-attachments/assets/9bf762ab-42f5-4893-9cab-46bb0bc50140" />
+
 This forwarder is what lets domain-joined machines using DC01 as their resolver still reach the internet — package repositories, and critically, the [external KMS host](../README.md#license-activation) used for Windows activation.
  
 **Verify:**
- 
-7. In DNS Manager, right-click the server → **Launch nslookup** (or open Command Prompt) and query an external name:
+9. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`. 
+> <img width="634" height="281" alt="image" src="https://github.com/user-attachments/assets/b9a134e6-2773-4034-94bd-74551789d77c" />
+10. In DNS Manager, right-click the server → **Launch nslookup** (or open Command Prompt) and query an external name:
 ```
 nslookup active.orientsoftware.asia
 nslookup rockylinux.org
@@ -197,6 +205,7 @@ Both should resolve successfully. If either fails, confirm NIC 1 (NAT) still has
 **PowerShell equivalent (optional):**
 ```powershell
 Set-DnsClientServerAddress -InterfaceAlias "Internal-LabNet" -ServerAddresses 192.168.10.10
+Set-DnsClient -InterfaceAlias "NAT-Internet" -RegisterThisConnectionsAddress $false
 Add-DnsServerForwarder -IPAddress 8.8.8.8, 1.1.1.1
 Resolve-DnsName active.orientsoftware.asia
 ```
