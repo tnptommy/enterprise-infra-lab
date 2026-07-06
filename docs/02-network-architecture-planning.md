@@ -145,10 +145,26 @@ Select the connection tied to the Host-only NIC → Edit → set IPv4 to **Manua
 
 Or directly via `nmcli`:
 ```bash
-sudo nmcli con mod "Wired connection 2" ipv4.addresses 192.168.10.21/24
-sudo nmcli con mod "Wired connection 2" ipv4.dns 192.168.10.10
-sudo nmcli con mod "Wired connection 2" ipv4.method manual
-sudo nmcli con up "Wired connection 2"
+sudo nmcli con mod "Wired connection 1" ipv4.addresses 192.168.10.21/24
+sudo nmcli con mod "Wired connection 1" ipv4.dns 192.168.10.10
+sudo nmcli con mod "Wired connection 1" ipv4.method manual
+sudo nmcli con up "Wired connection 1"
+```
+**Required follow-up — stop NIC 1 (NAT) from polluting DNS resolution:** by default, NetworkManager merges the DNS servers handed out by *both* connections into `/etc/resolv.conf`, in connection priority order. Since NIC 1 (NAT) is DHCP-assigned, it typically receives VMware's own virtual DNS server (commonly something like `192.168.x.2`) alongside NIC 2's static `192.168.10.10`. If that entry lands first in `/etc/resolv.conf`, every lookup for internal names (`corp-lab.com.vn`, `dc01.corp-lab.com.vn`, domain SRV records used by `realm discover`) is queried against VMware's NAT resolver first, which knows nothing about the internal domain, and can fail outright rather than falling back to the second nameserver. Fix this on **every** dual-NIC Linux VM right after setting the static IP on NIC 2 — find the exact connection name/device for NIC 1 first:
+ 
+```bash
+nmcli con show
+```
+ 
+Then disable that connection's automatic DNS:
+```bash
+sudo nmcli con modify "<NIC-1-connection-name>" ipv4.ignore-auto-dns yes
+sudo nmcli con up "<NIC-1-connection-name>"
+```
+ 
+Verify only `192.168.10.10` remains:
+```bash
+cat /etc/resolv.conf
 ```
 
 ---
