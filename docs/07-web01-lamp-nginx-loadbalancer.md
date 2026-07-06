@@ -14,7 +14,7 @@ All software versions below were current as of this document's last revision —
 | phpMyAdmin | 5.2.3 | https://www.phpmyadmin.net/downloads/ |
 | Nginx | 1.30.3 (stable) | https://nginx.org/en/download.html |
 | OpenSSL | 3.6.3 | https://openssl.org/source/ |
-| zlib | 1.3.1 | https://zlib.net/ |
+| zlib | 1.3.2 | https://zlib.net/ |
 | headers-more-nginx-module | 0.40 | https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.40.tar.gz |
 
 ---
@@ -577,12 +577,12 @@ curl http://127.0.0.1:8443/info.php | head -20
 cd ~
 wget https://nginx.org/download/nginx-1.30.3.tar.gz
 wget https://openssl.org/source/openssl-3.6.3.tar.gz
-wget https://zlib.net/zlib-1.3.1.tar.gz
+wget https://zlib.net/zlib-1.3.2.tar.gz
 wget https://github.com/openresty/headers-more-nginx-module/archive/refs/tags/v0.40.tar.gz -O headers-more-nginx-module-0.40.tar.gz
  
 tar -xzvf nginx-1.30.3.tar.gz
 tar -xzvf openssl-3.6.3.tar.gz
-tar -xzvf zlib-1.3.1.tar.gz
+tar -xzvf zlib-1.3.2.tar.gz
 tar -xzvf headers-more-nginx-module-0.40.tar.gz
  
 sudo dnf install -y pcre2-devel gcc make
@@ -603,7 +603,7 @@ cd nginx-1.30.3
   --with-http_stub_status_module \
   --with-http_ssl_module \
   --add-dynamic-module=../headers-more-nginx-module-0.40 \
-  --with-zlib=../zlib-1.3.1 \
+  --with-zlib=../zlib-1.3.2 \
   --with-openssl=../openssl-3.6.3
  
 make -j$(nproc)
