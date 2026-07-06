@@ -585,9 +585,9 @@ tar -xzvf openssl-3.6.3.tar.gz
 tar -xzvf zlib-1.3.2.tar.gz
 tar -xzvf headers-more-nginx-module-0.40.tar.gz
  
-sudo dnf install -y pcre2-devel gcc make perl-FindBin perl-IPC-Cmd perl-devel
+sudo dnf install -y pcre2-devel gcc make perl-FindBin perl-IPC-Cmd perl-devel perl-Time-Piece
 ```
-> `perl-FindBin` and `perl-IPC-Cmd` are required by OpenSSL's `Configure` script, which `nginx`'s build process invokes automatically when building OpenSSL statically via `--with-openssl=../openssl-3.6.3`. Without them, the build fails partway through with `Can't locate FindBin.pm in @INC` — install these before running `./configure` below, not after.
+> `perl-FindBin`, `perl-IPC-Cmd`, and `perl-Time-Piece` are all required by OpenSSL's `Configure`/`Makefile.in` generation, which `nginx`'s build process invokes automatically when building OpenSSL statically via `--with-openssl=../openssl-3.6.3`. Missing modules surface one at a time across separate build attempts (`Can't locate FindBin.pm`, then later `Can't locate Time/Piece.pm`) rather than all at once — install all three together before running `./configure` below to avoid repeating the build multiple times.
  
 ```bash
 sudo useradd --system --no-create-home --shell /sbin/nologin nginx
