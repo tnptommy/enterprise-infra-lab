@@ -788,8 +788,9 @@ curl -Ik https://localhost
  
 ```bash
 cd ~
-wget https://www.phpmyadmin.net/downloads/phpMyAdmin-5.2.3-all-languages.tar.gz
-tar -xzvf phpMyAdmin-5.2.3-all-languages.tar.gz
+wget https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-all-languages.zip
+sudo dnf install -y unzip
+unzip phpMyAdmin-5.2.3-all-languages.zip
 sudo mkdir -p /var/www
 sudo mv phpMyAdmin-5.2.3-all-languages /var/www/phpMyAdmin
 sudo chown -R nginx:nginx /var/www/phpMyAdmin
@@ -828,7 +829,7 @@ Verify from another machine on the network (not just WEB01 itself):
 http://192.168.10.21/phpmyadmin
 https://192.168.10.21/phpmyadmin
 ```
- 
+> <img width="1054" height="452" alt="image" src="https://github.com/user-attachments/assets/ee513fda-6e77-4d1e-b361-2a4ab0e8c280" /> 
 ---
  
 ## Step 15 — LogRotate
