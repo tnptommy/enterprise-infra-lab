@@ -734,7 +734,12 @@ If any of these time out or get refused while the local `curl http://localhost` 
 ---
  
 ## Step 13 — SSL/TLS on Nginx
- 
+
+Confirm the `openssl` command-line tool is installed — `openssl-devel` (installed earlier for Apache) provides headers/libraries only, not necessarily the CLI binary itself on a minimal install:
+```bash
+sudo dnf install -y openssl
+```
+
 Generate a self-signed certificate for this lab:
 ```bash
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
