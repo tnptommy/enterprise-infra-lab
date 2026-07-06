@@ -330,7 +330,7 @@ tar -xzvf apr-util-1.6.3.tar.gz
 mv apr-1.7.6 httpd-2.4.68/srclib/apr
 mv apr-util-1.6.3 httpd-2.4.68/srclib/apr-util
  
-sudo dnf install -y pcre-devel pcre2-devel openssl-devel expat-devel
+sudo dnf install -y pcre2-devel openssl-devel expat-devel
  
 cd httpd-2.4.68
 ./configure \
