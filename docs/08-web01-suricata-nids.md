@@ -87,7 +87,7 @@ sudo make install-full
 Confirm:
 ```bash
 suricata -V
-ls /etc/suricata/rules/
+ls /var/lib/suricata/rules/
 ```
 
 ---
@@ -141,7 +141,7 @@ This is the structured log format that Filebeat will later ship to ELK01 and/or 
 Create a simple custom rule that fires on any ICMP packet, so the pipeline can be verified end-to-end without waiting for a real attack signature to match:
 
 ```bash
-sudo tee /etc/suricata/rules/local.rules << 'EOF'
+sudo tee /var/lib/suricata/rules/local.rules << 'EOF'
 alert icmp any any -> any any (msg:"LOCAL TEST - ICMP packet detected"; sid:1000001; rev:1;)
 EOF
 ```
