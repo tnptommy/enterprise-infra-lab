@@ -828,7 +828,7 @@ Verify from another machine on the network (not just WEB01 itself):
 http://192.168.10.21/phpmyadmin
 https://192.168.10.21/phpmyadmin
 ```
-> <img width="1054" height="452" alt="image" src="https://github.com/user-attachments/assets/ee513fda-6e77-4d1e-b361-2a4ab0e8c280" /> 
+> <img width="1054" height="447" alt="Screenshot 2026-07-06 134423" src="https://github.com/user-attachments/assets/f104debc-c88a-43a7-81fb-065f390c4ce6" />
 ---
  
 ## Step 15 — LogRotate
