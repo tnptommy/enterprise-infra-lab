@@ -378,7 +378,7 @@ cd php-8.5.8
  
 sudo dnf install -y libxml2-devel sqlite-devel oniguruma-devel libcurl-devel \
     libzip-devel gmp-devel libicu-devel freetype-devel libjpeg-turbo-devel \
-    libpng-devel libwebp-devel gd-devel
+    libpng-devel libwebp-devel gd-devel gdbm-devel libtidy-devel
  
 ./configure \
   --with-apxs2=/opt/apache1/bin/apxs \
@@ -407,7 +407,7 @@ sudo dnf install -y libxml2-devel sqlite-devel oniguruma-devel libcurl-devel \
   --enable-intl \
   --with-libdir=lib64 \
   --with-openssl \
-  --with-libcurl \
+  --with-curl \
   --enable-cli \
   --with-mysqli \
   --with-zip
@@ -525,7 +525,7 @@ make clean
   --enable-intl \
   --with-libdir=lib64 \
   --with-openssl \
-  --with-libcurl \
+  --with-curl \
   --enable-cli \
   --with-mysqli \
   --with-zip
