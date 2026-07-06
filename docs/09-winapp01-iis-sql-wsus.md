@@ -84,8 +84,14 @@ Join the domain **now**, before IIS, SQL Server, or WSUS are installed — this 
 
 1. **Server Manager → Local Server** → click **Workgroup**.
 2. **Computer Name/Domain Changes** → **Change…**.
+> <img width="301" height="352" alt="image" src="https://github.com/user-attachments/assets/6259632e-6de2-46d1-820b-ecfe2aba908b" />
+
 3. Select **Domain**, enter `corp-lab.com.vn` → **OK**.
+> <img width="240" height="298" alt="image" src="https://github.com/user-attachments/assets/bb8e66fb-4156-411d-ab89-df45ee2e0c6f" />
+
 4. Enter credentials: `CORP-LAB\Administrator` and its password (from [KeePass](./03-remote-access-tooling-setup.md#keepass)).
+> <img width="338" height="273" alt="image" src="https://github.com/user-attachments/assets/aa601c34-51e2-4538-8691-866eab188bbc" />
+
 5. Accept the welcome-to-the-domain message → **OK** → **Restart Now**.
 
 **PowerShell equivalent (optional):**
