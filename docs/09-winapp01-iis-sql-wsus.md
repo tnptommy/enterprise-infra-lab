@@ -6,7 +6,7 @@ Every step below is written **GUI-first**, per this guide's convention for Windo
 
 | Component | Version used | Source |
 |---|---|---|
-| SQL Server | 2025 (17.x), Enterprise Developer Edition — free for non-production use | https://www.microsoft.com/en-us/sql-server/sql-server-downloads |
+| SQL Server | 2025 (17.x), Enterprise Developer Edition — free for non-production use | https://www.microsoft.com/en-us/evalcenter/sql-server-2025-download |
 | SQL Server Management Studio (SSMS) | 22.x (latest) | https://learn.microsoft.com/en-us/ssms/install/install |
 
 ---
@@ -111,8 +111,14 @@ Since Active Directory Users and Computers isn't installed on a member server by
 
 1. On DC01: **Server Manager → Tools → Active Directory Users and Computers**.
 2. Expand `corp-lab.com.vn` → right-click the **ServiceAccounts** OU (created in [`06`'s Step 11](./06-dc01-active-directory-dns-dhcp.md#step-11--ou-structure-and-baseline-gpos)) → **New → User**.
+> <img width="644" height="395" alt="image" src="https://github.com/user-attachments/assets/b89c6952-47dd-469f-8150-af7ed38cfb25" />
+
 3. Full name: `svc-sqlserver`, User logon name: `svc-sqlserver` → **Next**.
+> <img width="322" height="281" alt="image" src="https://github.com/user-attachments/assets/5e9a5339-78d3-4d06-8d84-a351a5702391" />
+
 4. Set a strong password, check **Password never expires**, uncheck **User must change password at next logon** (service accounts don't interactively log on to change passwords) → **Next** → **Finish**.
+> <img width="322" height="281" alt="image" src="https://github.com/user-attachments/assets/3f9f2e3d-079b-4844-a199-d8b6e733c682" />
+
 5. Store this password in [KeePass](./03-remote-access-tooling-setup.md#keepass) under a `WINAPP01_10.15` group entry named `svc-sqlserver`.
 
 **PowerShell equivalent (optional, run on DC01):**
@@ -142,29 +148,38 @@ Install-WindowsFeature -Name Web-Server -IncludeManagementTools
 
 ## Step 6 — Install SQL Server 2025
 
-1. Download the **Enterprise Developer edition** installer from https://www.microsoft.com/en-us/sql-server/sql-server-downloads (free for non-production/lab use — do not use this edition in any production deployment).
-2. Run the downloaded bootstrapper → choose **Download Media** (keeps a reusable copy) or **Basic** for a quick default install. This guide uses **Custom** to control the service account:
-   - From the SQL Server Installation Center, choose **Installation → New SQL Server stand-alone installation**.
-3. **Product Key**: select **Developer** (free) if not already pre-filled → **Next**.
-4. Accept license terms → **Next** through **Microsoft Update** (optional) → **Install Rules** (resolve any warnings shown) → **Next**.
-5. **Feature Selection**: check **Database Engine Services** at minimum; add **Full-Text and Semantic Extractions** if you plan to use full-text search later → **Next**.
-6. **Instance Configuration**: use **Default instance** (`MSSQLSERVER`) → **Next**.
-7. **Server Configuration** — this is where the dedicated service account matters:
+1. Download the SQL Server 2025 **ISO** from the Microsoft Evaluation Center: https://www.microsoft.com/en-us/evalcenter/sql-server-2025-download — register if prompted, then select the ISO download option (not the online installer).
+> <img width="623" height="494" alt="image" src="https://github.com/user-attachments/assets/976091bd-72d7-4f01-b8b4-3d3f2aff932f" />
+
+2. Once downloaded, mount the ISO: right-click the `.iso` file in File Explorer → **Mount**. This adds a virtual DVD drive containing the setup files.
+3. From the mounted drive, run `setup.exe`. This guide uses **Custom** to control the service account: from the SQL Server Installation Center, choose **Installation → New SQL Server stand-alone installation**.
+> <img width="646" height="535" alt="image" src="https://github.com/user-attachments/assets/d50bd893-ae29-4e3a-9c9f-8a9418817f64" />
+
+> <img width="646" height="500" alt="image" src="https://github.com/user-attachments/assets/28f2d194-a9e2-484e-9a4e-6ee21c301991" />
+
+4. **Edition**: select **Enter the product key**, then enter your licensed Enterprise Core key. Choose **I have a SQL Server license with Software Assurance or SQL Software Subscription** or **I have a SQL Server license only**, whichever matches your actual entitlement → **Next**.
+> Store the product key in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `WINAPP01_10.15` group alongside the other credentials on this VM — treat it as sensitive, since it's tied to a real license rather than a free edition. If you don't have a licensed key available, use **Specify a free edition → Developer** instead, which is free for non-production/lab use and doesn't carry the Evaluation edition's 180-day expiry.
+5. Accept license terms → **Next** through **Microsoft Update** (optional) → **Install Rules** (resolve any warnings shown) → **Next**.
+6. **Feature Selection**: check **Database Engine Services** at minimum; add **Full-Text and Semantic Extractions** if you plan to use full-text search later → **Next**.
+> <img width="602" height="528" alt="image" src="https://github.com/user-attachments/assets/41dfb1dc-149d-43aa-ace3-ac15a74fe0bd" />
+7. **Instance Configuration**: use **Default instance** (`MSSQLSERVER`) → **Next**.
+> <img width="602" height="529" alt="image" src="https://github.com/user-attachments/assets/426fbee3-29f4-4202-9815-2c20ccb8e285" />
+8. **Server Configuration** — this is where the dedicated service account matters:
    - SQL Server Database Engine service account: `CORP-LAB\svc-sqlserver`, enter its password from KeePass.
    - Startup type: **Automatic**.
-8. **Database Engine Configuration**:
+9. **Database Engine Configuration**:
+   ><img width="600" height="530" alt="image" src="https://github.com/user-attachments/assets/f62eebd5-0723-4194-a232-edbe4acdd323" />
+
    - **Authentication Mode**: **Mixed Mode** (allows both Windows and SQL authentication — useful for later app integrations that don't support Windows auth). Set a strong `sa` password, store it in KeePass.
    - **Specify SQL Server administrators**: add `CORP-LAB\Administrator` (or your own admin account).
    - **Data Directories** tab: point the data/log/tempdb directories at the second disk (e.g. `D:\SQLData`, `D:\SQLLogs`) rather than the OS disk — create these folders first if the installer doesn't do so automatically.
-9. **Next** through remaining screens → **Install**.
-10. Once complete, confirm the service is running: **Services** (`services.msc`) → **SQL Server (MSSQLSERVER)** should show **Running**.
+10. **Next** through remaining screens → **Install**.
+11. Once complete, confirm the service is running: **Services** (`services.msc`) → **SQL Server (MSSQLSERVER)** should show **Running**.
 
 **Open the firewall for SQL Server** (default instance uses TCP 1433):
 ```powershell
 New-NetFirewallRule -DisplayName "SQL-Server-1433" -Direction Inbound -Protocol TCP -LocalPort 1433 -Action Allow
 ```
-
----
 
 ## Step 7 — Install SQL Server Management Studio
 
