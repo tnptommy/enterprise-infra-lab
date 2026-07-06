@@ -179,6 +179,8 @@ Test the configuration before starting the service:
 ```bash
 sudo suricata -T -c /etc/suricata/suricata.yaml -v
 ```
+> <img width="983" height="143" alt="image" src="https://github.com/user-attachments/assets/ee9022f8-9128-4b50-b311-a053dcef61a6" />
+
 Expect no errors, ending in something like `Configuration provided was successfully loaded`.
 
 Enable and start:
@@ -204,6 +206,7 @@ Back on WEB01, confirm the test rule fired:
 ```bash
 sudo tail -20 /var/log/suricata/fast.log
 ```
+> <img width="1003" height="36" alt="image" src="https://github.com/user-attachments/assets/9b2f5352-1283-4499-92f9-d8e4b5f06bb3" />
 Expect a line containing `LOCAL TEST - ICMP packet detected`.
 
 Also check the structured EVE JSON output:
@@ -245,16 +248,27 @@ Nothing further needs to be done on WEB01 itself until those documents are reach
 ```bash
 sudo systemctl status suricata
 ```
+> <img width="689" height="167" alt="image" src="https://github.com/user-attachments/assets/4996e8a2-53dc-4d71-8805-a44c850c0c80" />
 
 2. **Configuration loads without error:**
 ```bash
 sudo suricata -T -c /etc/suricata/suricata.yaml -v
 ```
+> <img width="1966" height="286" alt="image" src="https://github.com/user-attachments/assets/9e6d3bd4-3b2c-4d8f-a420-340f5a46bca3" />
 
-3. **Correct interface is being monitored:**
+3. **Correct interface is being monitored** — `stats.log` field names can vary slightly by version, so rather than grep for an exact key, either eyeball the raw file or check the definitive per-interface packet count Suricata logs whenever the service stops or restarts:
 ```bash
-sudo ss -i | grep -A2 suricata
+sudo tail -20 /var/log/suricata/stats.log
 ```
+> <img width="643" height="236" alt="image" src="https://github.com/user-attachments/assets/0aee3455-ed8d-424a-aca6-4a7e025fdcff" />
+
+```bash
+sudo systemctl restart suricata
+sudo journalctl -u suricata -n 10 --no-pager | grep "device:"
+```
+> <img width="663" height="23" alt="image" src="https://github.com/user-attachments/assets/d04fabbb-d01b-4036-bc16-7d2ba5c0b9f6" />
+
+Expect a line like `device: ens224: packets: N, drops: 0 (0.00%)` with a non-zero packet count and the correct interface name — this confirms real traffic was captured on the interface configured in [Step 4](#step-4--configure-the-monitored-interface-and-home-network).
 
 4. **Test rule fires on real traffic** (repeat [Step 7](#step-7--fire-the-test-rule-and-confirm-an-alert) if not already confirmed).
 
@@ -262,11 +276,13 @@ sudo ss -i | grep -A2 suricata
 ```bash
 ls -la /var/log/suricata/eve.json
 ```
+> <img width="542" height="26" alt="image" src="https://github.com/user-attachments/assets/00be3d9c-4865-4e6c-8a95-4bafa7461951" />
 
 6. **Ruleset is current:**
 ```bash
 sudo suricata-update list-sources
 ```
+> <img width="570" height="221" alt="image" src="https://github.com/user-attachments/assets/9ed605ec-8f67-42e3-bb7b-994132c2bdc7" />
 
 If all six checks pass, Suricata is ready, and this rounds out WEB01's build.
 
