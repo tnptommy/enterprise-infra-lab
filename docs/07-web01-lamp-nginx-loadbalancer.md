@@ -882,10 +882,9 @@ sudo logrotate -d /etc/logrotate.d/web01-stack
 1. **Both Apache instances respond independently:**
 ```bash
 curl -I http://127.0.0.1:8080
-curl -I http://127.0.0.1:8443
+curl -I http://127.0.0.1:8081
 ```
-> <img width="344" height="212" alt="image" src="https://github.com/user-attachments/assets/751dd45f-8ddf-46d6-a41f-205db22ad1c6" />
-
+> <img width="286" height="209" alt="image" src="https://github.com/user-attachments/assets/f000e408-87f4-4faf-ad8d-115fada1fe0a" />
  
 2. **Website is reachable from other VMs, not just localhost** — from any other machine on `192.168.10.0/24` (or the host machine):
 ```bash
