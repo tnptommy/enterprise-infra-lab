@@ -899,37 +899,45 @@ for i in {1..10}; do curl -s http://localhost/info.php > /dev/null; done
 tail -5 /opt/apache1/logs/access_log
 tail -5 /opt/apache2/logs/access_log
 ```
+> <img width="688" height="146" alt="image" src="https://github.com/user-attachments/assets/7f849c51-64f8-47a7-825a-c165fae764a7" />
+
  
 4. **SSL is functioning:**
 ```bash
 curl -Ik https://localhost
 ```
+> <img width="272" height="104" alt="image" src="https://github.com/user-attachments/assets/95793e4a-deb9-4623-8144-30e591758050" />
  
 5. **MariaDB is running and reachable:**
 ```bash
 sudo systemctl status mariadb
 /opt/mariadb/bin/mariadb -u root -p -e "SELECT VERSION();"
 ```
+> <img width="820" height="322" alt="image" src="https://github.com/user-attachments/assets/4258253c-f5bf-4e77-9975-3aed6ba24d35" />
  
 6. **Swap is active and correctly sized:**
 ```bash
 free -h
 ```
+> <img width="485" height="45" alt="image" src="https://github.com/user-attachments/assets/3ddbd2d3-b10d-449c-b179-b5040f1a987f" />
  
 7. **LVM volume is mounted:**
 ```bash
 df -h /mnt/webdata
 ```
- 
+>  <img width="492" height="35" alt="image" src="https://github.com/user-attachments/assets/a063f7d6-d8bc-4678-8629-3ae6f5fd21e9" />
+
 8. **NFS export is visible:**
 ```bash
 showmount -e localhost
 ```
+> <img width="251" height="35" alt="image" src="https://github.com/user-attachments/assets/c7c5fcb7-6299-4104-9b8a-ebe585d37f50" />
  
 9. **Domain-join succeeded:**
 ```bash
 realm list
 ```
+> <img width="383" height="178" alt="image" src="https://github.com/user-attachments/assets/fa11ef91-3f3f-41a4-af95-90d2559657d9" />
  
 10. **Credentials are stored, not memorized** — confirm the local sudo user password and MariaDB root password are saved in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `WEB01_10.21` group.
 If all ten checks pass, WEB01 is ready.
