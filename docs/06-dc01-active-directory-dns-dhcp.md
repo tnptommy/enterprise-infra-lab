@@ -456,6 +456,8 @@ Confirm `Source:` is not `Local CMOS Clock`.
 5. **Storage Spaces volume is healthy** — **File Explorer** → confirm `D:` (`DataStorage`) is present and accessible.
 > <img width="578" height="393" alt="image" src="https://github.com/user-attachments/assets/c57c58a5-8e43-4d19-b6a6-ed441b7f7e87" />
 6. **Remote access works end-to-end** — from the host machine, connect via the `DC01_10.10` entry in [mRemoteNG](./03-remote-access-tooling-setup.md#pre-building-the-mremoteng-connection-list) and confirm a successful RDP session on port 3389.
+> <img width="1275" height="764" alt="image" src="https://github.com/user-attachments/assets/afa11051-8b40-4a4d-a166-78caaddd6e73" />
+
 7. **Credentials are stored, not memorized** — confirm the local Administrator password, the domain Administrator password, and the DSRM password are all saved in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `DC01_10.10` group before moving on.
 If all seven checks pass, DC01 is ready to serve as the foundation for the rest of this lab.
  
