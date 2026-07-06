@@ -43,8 +43,9 @@ sudo dnf repolist | grep -E "epel|crb"
 sudo dnf install -y gcc gcc-c++ make automake autoconf libtool \
     jansson-devel libpcap-devel libyaml-devel pcre2-devel zlib-devel \
     file-devel nss-devel nspr-devel libcap-ng-devel lz4-devel \
-    python3 python3-pyyaml python3-devel
+    python3 python3-pyyaml python3-devel libmaxminddb-devel
 ```
+> `libmaxminddb-devel` is required specifically because of the `--enable-geoip` flag used in [Step 3](#step-3--build-and-install-suricata) — without it, `./configure` fails with `libmaxminddb GeoIP2 library not found`.
 
 ---
 
@@ -85,7 +86,7 @@ sudo make install-full
 
 Confirm:
 ```bash
-suricata --version
+suricata -V
 ls /etc/suricata/rules/
 ```
 
