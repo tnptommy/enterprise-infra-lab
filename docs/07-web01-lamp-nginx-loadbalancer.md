@@ -283,6 +283,8 @@ sudo mkdir -p /opt/mariadb/data
 sudo chown -R mysql:mysql /opt/mariadb
 sudo /opt/mariadb/scripts/mariadb-install-db --user=mysql --datadir=/opt/mariadb/data --basedir=/opt/mariadb
 ```
+> <img width="754" height="365" alt="image" src="https://github.com/user-attachments/assets/2158c716-dc02-4533-a972-1d6f4fce3dbe" />
+
  
 Create a systemd unit:
 ```bash
