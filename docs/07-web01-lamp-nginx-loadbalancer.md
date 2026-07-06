@@ -780,6 +780,7 @@ Verify:
 ```bash
 curl -Ik https://localhost
 ```
+> <img width="279" height="99" alt="image" src="https://github.com/user-attachments/assets/909dd6f0-4bd9-4a40-9d01-d209e61dd5e0" />
  
 ---
  
