@@ -162,6 +162,7 @@ You should see two interfaces (commonly `ens160` and `ens224`, or similar) each 
 sudo dnf update -y
 dnf install -y epel-release
 sudo dnf config-manager --set-enabled crb
+sudo dnf makecache
 sudo dnf install -y net-tools lftp curl tar wget zip telnet vim rsync nano
 sudo dnf groupinstall -y "Development Tools"
 ```
