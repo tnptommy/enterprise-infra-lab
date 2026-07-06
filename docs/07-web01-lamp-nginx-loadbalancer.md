@@ -459,7 +459,7 @@ curl http://127.0.0.1:8080/info.php | head -20
  
 ## Step 10 — Build Apache instance 2 + PHP
  
-Identical process, second instance, listening on port **8443**:
+Identical process, second instance, listening on port **8081**:
  
 ```bash
 cd ~/httpd-2.4.68
@@ -494,7 +494,7 @@ make clean
  
 make -j$(nproc)
 sudo make install
-sudo sed -i 's/^Listen 80/Listen 127.0.0.1:8443/' /opt/apache2/conf/httpd.conf
+sudo sed -i 's/^Listen 80/Listen 127.0.0.1:8081/' /opt/apache2/conf/httpd.conf
  
 cd ~/php-8.5.8
 make clean
@@ -564,7 +564,7 @@ sudo systemctl enable --now apache2
 Test:
 ```bash
 echo "<?php phpinfo(); ?>" | sudo tee /opt/apache2/htdocs/info.php
-curl http://127.0.0.1:8443/info.php | head -20
+curl -s http://127.0.0.1:8081/info.php | grep -m1 "PHP Version"
 ```
  
 > Both instances share the same MariaDB (built in Step 8) — connect either one to it identically via `pdo_mysql`/`mysqli` once you deploy an application later.
@@ -656,7 +656,7 @@ Confirm `http` and `https` both appear in the output.
 sudo tee /opt/nginx/sites-enabled/web-cluster.conf << 'EOF'
 upstream apache_backend {
     server 127.0.0.1:8080;
-    server 127.0.0.1:8443;
+    server 127.0.0.1:8081;
 }
  
 server {
@@ -730,7 +730,6 @@ Invoke-WebRequest -Uri http://192.168.10.21 -UseBasicParsing | Select-Object Sta
 ```
 - From the host machine's own browser (if the host has connectivity to VMnet1 — typically true since it's the Host-only network): browse to `http://192.168.10.21`.
 If any of these time out or get refused while the local `curl http://localhost` in this same step succeeds, the firewall rule above is the most likely cause — re-run `sudo firewall-cmd --list-services` and confirm `http`/`https` are present.
- 
 ---
  
 ## Step 13 — SSL/TLS on Nginx
@@ -874,7 +873,8 @@ Test the rotation config without waiting for the schedule:
 ```bash
 sudo logrotate -d /etc/logrotate.d/web01-stack
 ```
- 
+> <img width="898" height="604" alt="image" src="https://github.com/user-attachments/assets/cda90e96-53c2-4873-920b-dab96f1c067c" />
+
 ---
  
 ## Step 16 — Final verification checklist
@@ -884,6 +884,8 @@ sudo logrotate -d /etc/logrotate.d/web01-stack
 curl -I http://127.0.0.1:8080
 curl -I http://127.0.0.1:8443
 ```
+> <img width="344" height="212" alt="image" src="https://github.com/user-attachments/assets/751dd45f-8ddf-46d6-a41f-205db22ad1c6" />
+
  
 2. **Website is reachable from other VMs, not just localhost** — from any other machine on `192.168.10.0/24` (or the host machine):
 ```bash
