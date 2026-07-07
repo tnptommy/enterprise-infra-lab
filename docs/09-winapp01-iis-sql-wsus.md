@@ -168,8 +168,6 @@ Install-WindowsFeature -Name Web-Server -IncludeManagementTools
    - SQL Server Database Engine service account: `CORP-LAB\svc-sqlserver`, enter its password from KeePass.
    - Startup type: **Automatic**.
 9. **Database Engine Configuration**:
-   ><img width="600" height="530" alt="image" src="https://github.com/user-attachments/assets/f62eebd5-0723-4194-a232-edbe4acdd323" />
-
    - **Authentication Mode**: **Mixed Mode** (allows both Windows and SQL authentication — useful for later app integrations that don't support Windows auth). Set a strong `sa` password, store it in KeePass.
    - **Specify SQL Server administrators**: add `CORP-LAB\Administrator` (or your own admin account).
    - **Data Directories** tab: point the data/log/tempdb directories at the second disk (e.g. `D:\SQLData`, `D:\SQLLogs`) rather than the OS disk — create these folders first if the installer doesn't do so automatically.
