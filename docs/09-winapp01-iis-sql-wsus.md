@@ -195,35 +195,43 @@ New-NetFirewallRule -DisplayName "SQL-Server-1433" -Direction Inbound -Protocol 
 1. **Server Manager → Manage → Add Roles and Features → Server Roles** → check **Windows Server Update Services**.
 > <img width="587" height="421" alt="image" src="https://github.com/user-attachments/assets/d9f158a4-8c9b-4b1d-99ea-ffde78737550" />
 2. Accept the prompt to add required features/management tools → **Next**.
-3. **Role Services**: ensure **WID Connectivity** is **unchecked** and **Database** is checked instead — this lab points WSUS at the SQL Server instance just installed rather than the default Windows Internal Database, giving hands-on practice connecting WSUS to an external SQL Server.
+3. **Role Services**: ensure **WID Connectivity** is **unchecked** and **SQL Server Connectivity** is checked instead — this lab points WSUS at the SQL Server instance just installed rather than the default Windows Internal Database, giving hands-on practice connecting WSUS to an external SQL Server.
+> <img width="588" height="421" alt="image" src="https://github.com/user-attachments/assets/b0cc1770-3c0b-4db7-b78f-939745321078" />
+
 4. **Content location selection**: choose a path on the second disk, e.g. `D:\WSUS`.
-5. **Confirmation → Install**.
+5. **Database Instance Selection**: enter the SQL Server instance to install the WSUS database into. Since [Step 6](#step-6--install-sql-server-2025) used the **Default instance**, enter just the machine name (no instance suffix needed):
+```
+WINAPP01
+```
+Click **Check connection**.
+> <img width="586" height="414" alt="image" src="https://github.com/user-attachments/assets/060306c5-7fcf-4221-9196-81fe05089777" />
+
+6. **Confirmation → Install**.
 
 ---
 
 ## Step 9 — Configure WSUS
 
 **Post-installation configuration:**
-
+ 
 1. Click the notification flag → **Launch Post-Installation tasks**, or open **Server Manager → Tools → Windows Server Update Services** and let the **WSUS Server Configuration Wizard** run automatically on first launch.
-2. When prompted for the database, specify the local SQL Server instance (`WINAPP01` or `WINAPP01\MSSQLSERVER`) — this is the step that binds WSUS to SQL Server instead of WID.
-3. Continue through the wizard: **Upstream Server** (this is the only WSUS server in this lab, leave as **Synchronize from Microsoft Update**), **Proxy Server** (skip unless your network requires one).
+2. Continue through the wizard: **Upstream Server** (this is the only WSUS server in this lab, leave as **Synchronize from Microsoft Update**), **Proxy Server** (skip unless your network requires one).
+> <img width="554" height="407" alt="image" src="https://github.com/user-attachments/assets/8b91ad4b-dec8-4159-80ef-27e01b9c1b4e" />
 
 **Products and Classifications:**
-
-4. In the WSUS console, go to **Options → Products and Classifications**.
-5. Under **Products**, limit selection to what this lab actually needs — check **Windows Server 2025** and **Windows 11** only (unchecking everything else keeps the WSUS content store from growing unnecessarily large, per the [README's note on this](../README.md#license-activation)).
-6. Under **Classifications**, check **Critical Updates**, **Security Updates**, and **Updates** at minimum.
-
+ 
+3. In the WSUS console, go to **Options → Products and Classifications**.
+4. Under **Products**, limit selection to what this lab actually needs — check **Windows Server 2025** and **Windows 11** only (unchecking everything else keeps the WSUS content store from growing unnecessarily large, per the [README's note on this](../README.md#license-activation)).
+5. Under **Classifications**, check **Critical Updates**, **Security Updates**, and **Updates** at minimum.
 **Synchronization schedule:**
-
-7. **Options → Synchronization Schedule** → set **Synchronize automatically**, once daily at a time that suits (e.g. 02:00).
-8. **Synchronizations** view → **Synchronize Now** to run an initial sync.
-
+ 
+6. **Options → Synchronization Schedule** → set **Synchronize automatically**, once daily at a time that suits (e.g. 02:00).
+7. **Synchronizations** view → **Synchronize Now** to run an initial sync.
 **Computer Groups and Auto-Approval:**
+ 
+8. In the left tree, right-click **All Computers** → **Add Computer Group…** → create groups matching this lab's OUs, e.g. `Servers` and `Workstations`.
+9. **Options → Automatic Approvals** → create a rule: approve **Critical Updates** and **Security Updates** for the **Servers** and **Workstations** groups automatically, so machines don't sit unpatched waiting for manual approval in this lab context.
 
-9. In the left tree, right-click **All Computers** → **Add Computer Group…** → create groups matching this lab's OUs, e.g. `Servers` and `Workstations`.
-10. **Options → Automatic Approvals** → create a rule: approve **Critical Updates** and **Security Updates** for the **Servers** and **Workstations** groups automatically, so machines don't sit unpatched waiting for manual approval in this lab context.
 
 ---
 
