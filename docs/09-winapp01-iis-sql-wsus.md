@@ -173,6 +173,9 @@ Install-WindowsFeature -Name Web-Server -IncludeManagementTools
    - **Authentication Mode**: **Mixed Mode** (allows both Windows and SQL authentication — useful for later app integrations that don't support Windows auth). Set a strong `sa` password, store it in KeePass.
    - **Specify SQL Server administrators**: add `CORP-LAB\Administrator` (or your own admin account).
    - **Data Directories** tab: point the data/log/tempdb directories at the second disk (e.g. `D:\SQLData`, `D:\SQLLogs`) rather than the OS disk — create these folders first if the installer doesn't do so automatically.
+
+     > <img width="602" height="527" alt="image" src="https://github.com/user-attachments/assets/0af737af-775f-4831-b512-0f1bbd048dda" />
+
 10. **Next** through remaining screens → **Install**.
 11. Once complete, confirm the service is running: **Services** (`services.msc`) → **SQL Server (MSSQLSERVER)** should show **Running**.
 
@@ -192,6 +195,7 @@ New-NetFirewallRule -DisplayName "SQL-Server-1433" -Direction Inbound -Protocol 
 ## Step 8 — Install WSUS
 
 1. **Server Manager → Manage → Add Roles and Features → Server Roles** → check **Windows Server Update Services**.
+> <img width="587" height="421" alt="image" src="https://github.com/user-attachments/assets/d9f158a4-8c9b-4b1d-99ea-ffde78737550" />
 2. Accept the prompt to add required features/management tools → **Next**.
 3. **Role Services**: ensure **WID Connectivity** is **unchecked** and **Database** is checked instead — this lab points WSUS at the SQL Server instance just installed rather than the default Windows Internal Database, giving hands-on practice connecting WSUS to an external SQL Server.
 4. **Content location selection**: choose a path on the second disk, e.g. `D:\WSUS`.
