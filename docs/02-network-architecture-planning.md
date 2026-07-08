@@ -91,27 +91,29 @@ This exact two-adapter configuration is baked into both Golden Baseline template
 ## IP allocation table
 
 Two separate naming conventions are used throughout this lab — see [VM and hostname naming convention](#vm-and-hostname-naming-convention) below for the reasoning.
-
+ 
 | Host | VMware VM name | OS hostname | NIC 2 static IP | Role |
 |---|---|---|---|---|
 | DC01 | `DC01_10.10` | `DC01` | `192.168.10.10` | Active Directory, DNS, DHCP, NTP |
 | WINAPP01 | `WINAPP01_10.15` | `WINAPP01` | `192.168.10.15` | IIS, SQL Server, WSUS |
 | WEB01 | `WEB01_10.21` | `WEB01` | `192.168.10.21` | Nginx (reverse proxy / load balancer), Apache × 2, MariaDB, Suricata |
-| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh |
-| ELK01 | `ELK01_10.50` | `ELK01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
+| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh, Prometheus, Grafana |
+| OPS01 | `OPS01_10.41` | `OPS01` | `192.168.10.41` | Ansible control node, Keycloak (SSO) |
+| LOG01 | `LOG01_10.50` | `LOG01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
 | LOG02 | `LOG02_10.51` | `LOG02` | `192.168.10.51` | OpenSearch, OpenSearch Dashboards |
 | CLIENT01 | `CLIENT01_dhcp` | `CLIENT01` | DHCP (`192.168.10.100`–`200` pool, served by DC01) | Domain-joined test client |
-
+ 
 **Reserved ranges within `192.168.10.0/24`:**
-
+ 
 | Range | Purpose |
 |---|---|
 | `.1`–`.9` | Reserved (gateway, infrastructure) |
 | `.10`–`.19` | Windows infrastructure servers (DC01, WINAPP01) |
 | `.20`–`.29` | Web tier (WEB01) |
 | `.40`–`.49` | Monitoring tier (MON01) |
-| `.50`–`.59` | Log analytics tier (ELK01, LOG02) |
+| `.50`–`.59` | Log analytics tier (LOG01, LOG02) |
 | `.100`–`.200` | DHCP pool for domain-joined clients (CLIENT01 and any future additions) |
+ 
 
 ---
 
