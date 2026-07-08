@@ -191,6 +191,18 @@ The DNS Server role was installed automatically with AD DS. Two things need expl
 
 This forwarder is what lets domain-joined machines using DC01 as their resolver still reach the internet — package repositories, and critically, the [external KMS host](../README.md#license-activation) used for Windows activation.
  
+**Add a forward `A` record for each Linux VM:**
+ 
+Windows domain-joined machines (DC01, WINAPP01, CLIENT01) register their own forward `A` record automatically via Dynamic DNS. **Linux VMs do not** — `realmd`/`sssd` domain-join has no equivalent auto-registration, forward or reverse. Without this step, `web01.corp-lab.com.vn` simply doesn't resolve at all, and any CNAME created later that points at it (see the per-service subdomain table further down) would be pointing at a name that doesn't exist.
+ 
+| VM | IP | Forward record |
+|---|---|---|
+| WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn` |
+| MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn` |
+| OPS01 | `192.168.10.41` | `ops01.corp-lab.com.vn` |
+| LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn` |
+| LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn` |
+ 
 9. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`.
 > <img width="634" height="281" alt="image" src="https://github.com/user-attachments/assets/b9a134e6-2773-4034-94bd-74551789d77c" />
 **Add a reverse lookup zone:**
@@ -204,12 +216,12 @@ Reverse DNS (IP → hostname) isn't required for anything in this lab to functio
 14. **Dynamic updates**: select **Allow only secure dynamic updates** — this lets domain-joined Windows machines (DC01, WINAPP01, CLIENT01) register their own PTR record automatically, the same way they already register forward `A` records → **Next** → **Finish**.
 Windows domain-joined machines register their PTR record automatically the next time they refresh DNS registration (or immediately via `ipconfig /registerdns` on that machine) — this covers DC01, WINAPP01, and CLIENT01 with no manual step needed. **Linux VMs do not** — same as the forward `A` record gap already covered in [`07`'s Nginx testing notes](./07-web01-lamp-nginx-loadbalancer.md), `realmd`/`sssd` domain-join doesn't register any DNS records, forward or reverse. Add a PTR record manually for every Linux VM in this lab:
  
-| VM | IP | PTR target |
-|---|---|---|
-| WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn.` |
-| MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn.` |
-| LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn.` |
-| LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn.` |
+  | VM | IP | PTR target |
+  |---|---|---|
+  | WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn.` |
+  | MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn.` |
+  | LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn.` |
+  | LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn.` |
  
 15. For each row above: right-click the new `10.168.192.in-addr.arpa` zone → **New Pointer (PTR)…** → enter that row's **Host IP number** and **Host name** (note the trailing dot) → **OK**. Do this now for WEB01 (already built); repeat for MON01, LOG01, and LOG02 as each is built in later documents — this doesn't need to happen all at once.
 **Add a friendly subdomain (CNAME) for each tool/service:**
