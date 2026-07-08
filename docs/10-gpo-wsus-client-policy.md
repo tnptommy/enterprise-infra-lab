@@ -28,6 +28,7 @@ Domain-joined computers land in the default **Computers** container, not any cus
 2. Expand `corp-lab.com.vn` → click the **Computers** container → confirm `WINAPP01` is listed there.
 3. Drag `WINAPP01` onto the **Servers** OU (or right-click → **Move…** → select **Servers** → **OK**).
 4. Confirm: right-click **Servers** OU → it should now list `WINAPP01`.
+> <img width="641" height="394" alt="image" src="https://github.com/user-attachments/assets/55883046-a6d8-4d15-840e-7b62d59d1479" />
 
 Repeat this step for every future Windows Server VM in this lab, and do the equivalent for Windows 11 client machines into the **Workstations** OU once [`11-client01-domain-join-wsus-verification.md`](./11-client01-domain-join-wsus-verification.md) joins CLIENT01 to the domain.
 
