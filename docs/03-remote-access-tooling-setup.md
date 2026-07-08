@@ -113,6 +113,7 @@ Set up the full connection list now, using the [IP allocation table](./02-networ
  
 1. In mRemoteNG, right-click the root of the **Connections** panel → **Add Folder** → name it `enterprise-infra-lab`.
 2. Right-click that folder → **Add Connection** for each VM, using the connection name shown below (not just the bare hostname):
+
 | Connection name | Protocol | Hostname/IP | Notes |
 |---|---|---|---|
 | `DC01_10.10` | RDP | `192.168.10.10` | Stays on the default port `3389` — see [`06`](./06-dc01-active-directory-dns-dhcp.md) |
