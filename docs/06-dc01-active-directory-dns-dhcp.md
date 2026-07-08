@@ -191,9 +191,42 @@ The DNS Server role was installed automatically with AD DS. Two things need expl
 
 This forwarder is what lets domain-joined machines using DC01 as their resolver still reach the internet — package repositories, and critically, the [external KMS host](../README.md#license-activation) used for Windows activation.
  
-**Verify:**
-9. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`. 
+9. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`.
 > <img width="634" height="281" alt="image" src="https://github.com/user-attachments/assets/b9a134e6-2773-4034-94bd-74551789d77c" />
+**Add a reverse lookup zone:**
+ 
+Reverse DNS (IP → hostname) isn't required for anything in this lab to function, but it makes troubleshooting considerably easier — `nslookup -x 192.168.10.21` returning `web01.corp-lab.com.vn` instead of nothing saves real time when reading logs from Zabbix, Wazuh, or Suricata later, all of which log primarily by IP.
+ 
+10. **DNS Manager** → right-click **Reverse Lookup Zones → New Zone…**.
+11. **Primary zone**, check **Store the zone in Active Directory** → **Next**.
+12. Replicate to **All DNS servers in this domain** (default is fine for a single-DC lab) → **Next**.
+13. **IPv4 Reverse Lookup Zone**, **Network ID**: `192.168.10.0/24` → **Next**.
+14. **Dynamic updates**: select **Allow only secure dynamic updates** — this lets domain-joined Windows machines (DC01, WINAPP01, CLIENT01) register their own PTR record automatically, the same way they already register forward `A` records → **Next** → **Finish**.
+Windows domain-joined machines register their PTR record automatically the next time they refresh DNS registration (or immediately via `ipconfig /registerdns` on that machine) — this covers DC01, WINAPP01, and CLIENT01 with no manual step needed. **Linux VMs do not** — same as the forward `A` record gap already covered in [`07`'s Nginx testing notes](./07-web01-lamp-nginx-loadbalancer.md), `realmd`/`sssd` domain-join doesn't register any DNS records, forward or reverse. Add a PTR record manually for every Linux VM in this lab:
+ 
+| VM | IP | PTR target |
+|---|---|---|
+| WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn.` |
+| MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn.` |
+| LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn.` |
+| LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn.` |
+ 
+15. For each row above: right-click the new `10.168.192.in-addr.arpa` zone → **New Pointer (PTR)…** → enter that row's **Host IP number** and **Host name** (note the trailing dot) → **OK**. Do this now for WEB01 (already built); repeat for MON01, LOG01, and LOG02 as each is built in later documents — this doesn't need to happen all at once.
+**Add a friendly subdomain (CNAME) for each tool/service:**
+ 
+Several VMs in this lab host more than one distinct web UI (MON01 alone will run both Zabbix and Wazuh). Rather than making everyone remember which VM hostname (and which port) each tool lives on, give each tool its own subdomain that points at the underlying VM — the same pattern real infrastructure uses so a service can move to a different host later without every bookmark/link breaking.
+ 
+| Subdomain | Points to (CNAME target) | Service | Built in |
+|---|---|---|---|
+| `phpmyadmin.corp-lab.com.vn` | `web01.corp-lab.com.vn` | phpMyAdmin | [`07`](./07-web01-lamp-nginx-loadbalancer.md) |
+| `wsus.corp-lab.com.vn` | `winapp01.corp-lab.com.vn` | WSUS console | [`09`](./09-winapp01-iis-sql-wsus.md) |
+| `zabbix.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Zabbix Frontend | [`12`](./12-mon01-zabbix-server-configuration.md) |
+| `wazuh.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Wazuh Dashboard | [`13`](./13-mon01-wazuh-manager-configuration.md) |
+| `kibana.corp-lab.com.vn` | `log01.corp-lab.com.vn` | Kibana | [`15`](./15-log01-elasticsearch-logstash-kibana.md) |
+| `opensearch.corp-lab.com.vn` | `log02.corp-lab.com.vn` | OpenSearch Dashboards | [`16`](./16-log02-opensearch-deployment.md) |
+ 
+16. For each row: **DNS Manager → Forward Lookup Zones → corp-lab.com.vn** → right-click → **New Alias (CNAME)…** → **Alias name** (e.g. `phpmyadmin`), **Fully qualified domain name (FQDN) for target host** (e.g. `web01.corp-lab.com.vn.`) → **OK**. Create only `phpmyadmin.corp-lab.com.vn` now, since WEB01 is the only VM built so far — add each remaining row when that VM's own document is reached, exactly like the PTR records above.
+**Verify:**
 10. In DNS Manager, right-click the server → **Launch nslookup** (or open Command Prompt) and query an external name:
 ```
 nslookup active.orientsoftware.asia
