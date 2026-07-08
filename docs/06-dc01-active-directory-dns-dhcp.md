@@ -191,16 +191,98 @@ The DNS Server role was installed automatically with AD DS. Two things need expl
 
 This forwarder is what lets domain-joined machines using DC01 as their resolver still reach the internet — package repositories, and critically, the [external KMS host](../README.md#license-activation) used for Windows activation.
  
+**Add a forward `A` record for each Linux VM:**
+ 
+Windows domain-joined machines (DC01, WINAPP01, CLIENT01) register their own forward `A` record automatically via Dynamic DNS. **Linux VMs do not** — `realmd`/`sssd` domain-join has no equivalent auto-registration, forward or reverse. Without this step, `web01.corp-lab.com.vn` simply doesn't resolve at all, and any CNAME created later that points at it (see the per-service subdomain table further down) would be pointing at a name that doesn't exist.
+ 
+| VM | IP | Forward record |
+|---|---|---|
+| WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn` |
+| MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn` |
+| OPS01 | `192.168.10.41` | `ops01.corp-lab.com.vn` |
+| LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn` |
+| LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn` |
+ 
+9. For each row: **DNS Manager → Forward Lookup Zones → corp-lab.com.vn** → right-click → **New Host (A or AAAA)…** → **Name** (just the short hostname, e.g. `web01`), **IP address** → **Add Host**. Create only the `web01` entry now, since WEB01 is the only Linux VM built so far — add each remaining row when that VM's own document is reached.
+**Clean up any stray NAT address already registered** (skip if DC01's DNS zone is freshly created and this hasn't happened yet):
+ 
+10. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`.
+**Add a reverse lookup zone:**
+ 
+Reverse DNS (IP → hostname) isn't required for anything in this lab to function, but it makes troubleshooting considerably easier — `nslookup -x 192.168.10.21` returning `web01.corp-lab.com.vn` instead of nothing saves real time when reading logs from Zabbix, Wazuh, or Suricata later, all of which log primarily by IP.
+ 
+11. **DNS Manager** → right-click **Reverse Lookup Zones → New Zone…**.
+12. **Primary zone**, check **Store the zone in Active Directory** → **Next**.
+13. Replicate to **All DNS servers in this domain** (default is fine for a single-DC lab) → **Next**.
+14. **IPv4 Reverse Lookup Zone**, **Network ID**: `192.168.10.0/24` → **Next**.
+15. **Dynamic updates**: select **Allow only secure dynamic updates** — this lets domain-joined Windows machines (DC01, WINAPP01, CLIENT01) register their own PTR record automatically, the same way they already register forward `A` records → **Next** → **Finish**.
+Windows domain-joined machines register their PTR record automatically the next time they refresh DNS registration (or immediately via `ipconfig /registerdns` on that machine) — this covers DC01, WINAPP01, and CLIENT01 with no manual step needed. **Linux VMs do not** — same gap as the forward `A` record above, `realmd`/`sssd` domain-join doesn't register any DNS records, forward or reverse. Add a PTR record manually for every Linux VM in this lab:
+ 
+| VM | IP | PTR target |
+|---|---|---|
+| WEB01 | `192.168.10.21` | `web01.corp-lab.com.vn.` |
+| MON01 | `192.168.10.40` | `mon01.corp-lab.com.vn.` |
+| OPS01 | `192.168.10.41` | `ops01.corp-lab.com.vn.` |
+| LOG01 | `192.168.10.50` | `log01.corp-lab.com.vn.` |
+| LOG02 | `192.168.10.51` | `log02.corp-lab.com.vn.` |
+ 
+16. For each row above: right-click the new `10.168.192.in-addr.arpa` zone → **New Pointer (PTR)…** → enter that row's **Host IP number** and **Host name** (note the trailing dot) → **OK**. Do this now for WEB01 (already built); repeat for MON01, OPS01, LOG01, and LOG02 as each is built in later documents — this doesn't need to happen all at once.
+**Force DC01 to register its own PTR record now:**
+ 
+The reverse zone was just created — DC01 itself won't automatically appear in it until the next time it re-registers with DNS (normally triggered by an IP change or reboot, neither of which is happening right now). Force it immediately:
+ 
+```powershell
+ipconfig /registerdns
+```
+ 
+Wait about 10-15 seconds, then confirm the record appeared:
+```
+nslookup 192.168.10.10
+```
+Expect `dc01.corp-lab.com.vn` in the response. Run the same `ipconfig /registerdns` on WINAPP01 and CLIENT01 once each is domain-joined, for the same reason.
+ 
+**Add a friendly subdomain (CNAME) for each tool/service:**
+ 
+Several VMs in this lab host more than one distinct web UI (MON01 alone will run both Zabbix and Wazuh). Rather than making everyone remember which VM hostname (and which port) each tool lives on, give each tool its own subdomain that points at the underlying VM — the same pattern real infrastructure uses so a service can move to a different host later without every bookmark/link breaking.
+ 
+| Subdomain | Points to (CNAME target) | Service | Built in |
+|---|---|---|---|
+| `phpmyadmin.corp-lab.com.vn` | `web01.corp-lab.com.vn` | phpMyAdmin | [`07`](./07-web01-lamp-nginx-loadbalancer.md) |
+| `wsus.corp-lab.com.vn` | `winapp01.corp-lab.com.vn` | WSUS console | [`09`](./09-winapp01-iis-sql-wsus.md) |
+| `zabbix.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Zabbix Frontend | [`12`](./12-mon01-zabbix-server-configuration.md) |
+| `wazuh.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Wazuh Dashboard | [`13`](./13-mon01-wazuh-manager-configuration.md) |
+| `grafana.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Grafana | [`14`](./14-mon01-prometheus-grafana-monitoring.md) |
+| `kibana.corp-lab.com.vn` | `log01.corp-lab.com.vn` | Kibana | [`15`](./15-log01-elasticsearch-logstash-kibana.md) |
+| `opensearch.corp-lab.com.vn` | `log02.corp-lab.com.vn` | OpenSearch Dashboards | [`16`](./16-log02-opensearch-deployment.md) |
+| `keycloak.corp-lab.com.vn` | `ops01.corp-lab.com.vn` | Keycloak admin console | [`19`](./19-ops01-ansible-keycloak.md) |
+ 
+17. For each row: **DNS Manager → Forward Lookup Zones → corp-lab.com.vn** → right-click → **New Alias (CNAME)…** → **Alias name** (e.g. `phpmyadmin`), **Fully qualified domain name (FQDN) for target host** (e.g. `web01.corp-lab.com.vn.`) → **OK**. Create only `phpmyadmin.corp-lab.com.vn` now, since WEB01 is the only VM built so far — add each remaining row when that VM's own document is reached, exactly like the PTR records above.
 **Verify:**
-9. In DNS Manager, expand **Forward Lookup Zones → corp-lab.com.vn**, find the host record(s) for `dc01`. If two `A` records exist — one showing `192.168.10.10` and another showing a `192.168.x.x` NAT-range address — delete the incorrect NAT one, keeping only `192.168.10.10`. 
-> <img width="634" height="281" alt="image" src="https://github.com/user-attachments/assets/b9a134e6-2773-4034-94bd-74551789d77c" />
-10. In DNS Manager, right-click the server → **Launch nslookup** (or open Command Prompt) and query an external name:
+ 
+18. Confirm the forward `A` record resolves:
+```
+nslookup web01.corp-lab.com.vn
+```
+Expect `192.168.10.21` in the response.
+ 
+19. In DNS Manager, right-click the server → **Launch nslookup** (or open Command Prompt) and query an external name:
 ```
 nslookup active.orientsoftware.asia
 nslookup rockylinux.org
 ```
-> <img width="537" height="309" alt="image" src="https://github.com/user-attachments/assets/29930883-a8d4-4c8c-97c7-83d1880c1285" />
 Both should resolve successfully. If either fails, confirm NIC 1 (NAT) still has working internet connectivity independent of NIC 2 — DNS forwarding relies on DC01 itself being able to reach `8.8.8.8`/`1.1.1.1` over NIC 1.
+ 
+20. Confirm reverse lookup works for WEB01:
+```
+nslookup 192.168.10.21
+```
+Expect `web01.corp-lab.com.vn` in the response.
+ 
+21. Confirm the CNAME resolves:
+```
+nslookup phpmyadmin.corp-lab.com.vn
+```
+Expect it to resolve through to `192.168.10.21` (the same address as `web01.corp-lab.com.vn`).
  
 **PowerShell equivalent (optional):**
 ```powershell
@@ -208,6 +290,25 @@ Set-DnsClientServerAddress -InterfaceAlias "Internal-LabNet" -ServerAddresses 19
 Set-DnsClient -InterfaceAlias "NAT-Internet" -RegisterThisConnectionsAddress $false
 Add-DnsServerForwarder -IPAddress 8.8.8.8, 1.1.1.1
 Resolve-DnsName active.orientsoftware.asia
+ 
+# Add each Linux VM's forward A record as it's built — not all at once
+Add-DnsServerResourceRecordA -ZoneName "corp-lab.com.vn" -Name "web01" -IPv4Address "192.168.10.21"
+Add-DnsServerResourceRecordA -ZoneName "corp-lab.com.vn" -Name "mon01" -IPv4Address "192.168.10.40"
+Add-DnsServerResourceRecordA -ZoneName "corp-lab.com.vn" -Name "ops01" -IPv4Address "192.168.10.41"
+Add-DnsServerResourceRecordA -ZoneName "corp-lab.com.vn" -Name "log01" -IPv4Address "192.168.10.50"
+Add-DnsServerResourceRecordA -ZoneName "corp-lab.com.vn" -Name "log02" -IPv4Address "192.168.10.51"
+ 
+Add-DnsServerPrimaryZone -NetworkId "192.168.10.0/24" -ReplicationScope "Domain" -DynamicUpdate "Secure"
+ 
+# Add each Linux VM's PTR record as it's built — not all at once
+Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "21" -PtrDomainName "web01.corp-lab.com.vn."
+Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "40" -PtrDomainName "mon01.corp-lab.com.vn."
+Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "41" -PtrDomainName "ops01.corp-lab.com.vn."
+Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "50" -PtrDomainName "log01.corp-lab.com.vn."
+Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "51" -PtrDomainName "log02.corp-lab.com.vn."
+ 
+# Add a CNAME per tool/service — create each as its VM/service is built
+Add-DnsServerResourceRecordCName -ZoneName "corp-lab.com.vn" -Name "phpmyadmin" -HostNameAlias "web01.corp-lab.com.vn."
 ```
  
 ---

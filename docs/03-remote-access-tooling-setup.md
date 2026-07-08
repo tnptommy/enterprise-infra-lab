@@ -66,7 +66,7 @@ WinSCP sessions are configured per-VM as needed later (its own login dialog, or 
 ---
 
 ## KeePass
-
+ 
 1. Download: https://keepass.info/download.html
 2. Choose the **Installer** (`.exe`) or **Portable** (`.zip`) package — either works; Portable is convenient if you want the database file and executable to travel together on removable media.
 3. Run the installer, accept defaults.
@@ -74,7 +74,7 @@ WinSCP sessions are configured per-VM as needed later (its own login dialog, or 
    - Save it somewhere backed up regularly (not inside any VM — the host machine, or a synced folder).
    - Set a strong master password. This single password protects every credential stored for all 7 VMs, so make it one you can reliably remember or store securely outside KeePass itself (e.g. written down and kept somewhere physically secure).
 5. Create one group per VM to keep entries organized, matching the naming convention from [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#vm-and-hostname-naming-convention):
-   ```
+```
    enterprise-infra-lab/
    ├── DC01_10.10/
    │   ├── Local Administrator
@@ -89,7 +89,11 @@ WinSCP sessions are configured per-VM as needed later (its own login dialog, or 
    │   ├── root / sudo user
    │   ├── Zabbix Frontend admin
    │   └── Wazuh Dashboard admin
-   ├── ELK01_10.50/
+   ├── OPS01_10.41/
+   │   ├── root / sudo user
+   │   ├── Ansible (SSH key passphrase, if used)
+   │   └── Keycloak admin console
+   ├── LOG01_10.50/
    │   ├── root / sudo user
    │   └── Kibana/Elasticsearch
    ├── LOG02_10.51/
@@ -97,31 +101,31 @@ WinSCP sessions are configured per-VM as needed later (its own login dialog, or 
    │   └── OpenSearch Dashboards
    └── CLIENT01/
        └── Local Administrator
-   ```
+```
 6. Add entries as each VM is built throughout the rest of this guide, rather than trying to fill the database in now — the point is to have the structure ready so no password ever gets written down in plaintext or trusted to memory.
-
 ---
-
+ 
 ## Pre-building the mRemoteNG connection list
-
+ 
 Set up the full connection list now, using the [IP allocation table](./02-network-architecture-planning.md#ip-allocation-table) from the previous document. Credentials can be left blank and filled in as each VM is actually built (or linked to KeePass — see below) — this just pre-stages the list so nothing needs to be typed from memory later.
-
+ 
 **Naming rule:** every connection name in mRemoteNG must follow the same `HOST_lastTwoOctets` convention used for the VMware VM name itself (see [`02-network-architecture-planning.md`](./02-network-architecture-planning.md#vm-and-hostname-naming-convention)). This keeps the connection list, the VMware Library, and this guide's documentation all referring to the same identifier — no translating between "the VM called X" and "the connection called Y".
-
+ 
 1. In mRemoteNG, right-click the root of the **Connections** panel → **Add Folder** → name it `enterprise-infra-lab`.
 2. Right-click that folder → **Add Connection** for each VM, using the connection name shown below (not just the bare hostname):
 
 | Connection name | Protocol | Hostname/IP | Notes |
 |---|---|---|---|
-| `DC01_10.10` | RDP | `192.168.10.10` | Custom RDP port set once configured in [`06`](./06-dc01-active-directory-dns-dhcp.md) |
-| `WINAPP01_10.15` | RDP | `192.168.10.15` | Custom RDP port set once configured in [`09`](./09-winapp01-iis-sql-wsus.md) |
+| `DC01_10.10` | RDP | `192.168.10.10` | Stays on the default port `3389` — see [`06`](./06-dc01-active-directory-dns-dhcp.md) |
+| `WINAPP01_10.15` | RDP | `192.168.10.15` | Port to be confirmed once configured in [`09`](./09-winapp01-iis-sql-wsus.md) |
 | `WEB01_10.21` | SSH | `192.168.10.21` | |
 | `MON01_10.40` | SSH | `192.168.10.40` | |
-| `ELK01_10.50` | SSH | `192.168.10.50` | |
+| `OPS01_10.41` | SSH | `192.168.10.41` | |
+| `LOG01_10.50` | SSH | `192.168.10.50` | |
 | `LOG02_10.51` | SSH | `192.168.10.51` | |
 | `CLIENT01_dhcp` | RDP | *(assign once DHCP lease is known)* | |
-
-3. For each RDP connection, set **Protocol → RDP**, **Port → 3389** initially (update later once each Windows VM's build document changes the RDP port for hardening purposes).
+ 
+3. For each RDP connection, set **Protocol → RDP**, **Port → 3389** — this lab keeps the default RDP port throughout, so no later update is needed for these connections.
 4. For each SSH connection, set **Protocol → SSH2**, **Port → 22**.
 5. Save the connection file (**File → Save Connections**) somewhere you'll remember — mRemoteNG keeps this as a single encrypted `.mrng` file.
 
