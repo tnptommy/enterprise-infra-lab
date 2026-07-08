@@ -33,7 +33,9 @@ This lab reproduces the core building blocks of a small-to-medium enterprise IT 
 - **Database & application services** — Microsoft SQL Server, IIS
 - **Network intrusion detection** — Suricata (NIDS)
 - **Monitoring & SIEM** — Zabbix, Wazuh, Elastic Stack (ELK), OpenSearch
-- **Identity federation & SSO** — Keycloak, providing single sign-on across every monitoring/log dashboard (Kibana, OpenSearch Dashboards, Wazuh Dashboard, Zabbix Frontend)
+- **Identity federation & SSO** — Keycloak, running on a dedicated operations VM (OPS01), providing single sign-on across every monitoring/log dashboard (Kibana, OpenSearch Dashboards, Wazuh Dashboard, Zabbix Frontend)
+- **Configuration management** — Ansible, run from a control node on OPS01, for pushing configuration and automating repeatable tasks across every other VM
+- **Metrics monitoring (separate ecosystem from Zabbix)** — Prometheus and Grafana, added alongside Zabbix rather than replacing it, for hands-on practice with the pull-based/exporter model common in cloud-native and DevOps-oriented environments
 - **Automation & hardening** — scripted backups, firewall/SELinux hardening, scheduled maintenance
 
 The goal is hands-on, reproducible practice with the full lifecycle of enterprise systems administration: provisioning, configuration, security hardening, monitoring, and automation — all documented as a public runbook.
@@ -45,11 +47,11 @@ The goal is hands-on, reproducible practice with the full lifecycle of enterpris
 | Component | Minimum | Recommended |
 |---|---|---|
 | CPU | 8 cores / 16 threads, VT-x / AMD-V enabled in BIOS | 12–16 cores / 24–32 threads |
-| RAM | 48 GB | 64 GB |
+| RAM | 52 GB | 64–72 GB |
 | Storage | 800 GB free (SSD) | 1 TB NVMe |
 | Network | 1 host NIC (for NAT outbound internet access) | — |
 
-> Total VM resource footprint is approximately **46–52 GB RAM** and **~550 GB disk** across 7 virtual machines. See [Virtual machine inventory](#virtual-machine-inventory) for the full breakdown.
+> Total VM resource footprint is approximately **48–58 GB RAM** and **~590 GB disk** across 8 virtual machines. See [Virtual machine inventory](#virtual-machine-inventory) for the full breakdown.
 
 ---
 
@@ -75,7 +77,7 @@ Detailed installation steps: [`docs/00-vmware-workstation-installation.md`](./do
 |---|---|---|---|
 | DC01, WINAPP01 | Windows Server 2025 | **Datacenter** (Desktop Experience) | https://www.microsoft.com/evalcenter/evaluate-windows-server-2025 |
 | CLIENT01 | Windows 11 24H2 | **Pro** | https://www.microsoft.com/software-download/windows11 |
-| WEB01, MON01, ELK01, LOG02 | Rocky Linux 10 | Minimal | https://rockylinux.org/download |
+| WEB01, MON01, OPS01, LOG01, LOG02 | Rocky Linux 10 | Minimal | https://rockylinux.org/download |
 
 ISO acquisition and checksum verification steps: [`docs/01-iso-acquisition-and-verification.md`](./docs/01-iso-acquisition-and-verification.md)
 
@@ -131,8 +133,9 @@ Two separate naming conventions are used throughout this lab:
 | DC01 | `DC01_10.10` | `DC01` | `192.168.10.10` | Active Directory, DNS, DHCP, NTP |
 | WINAPP01 | `WINAPP01_10.15` | `WINAPP01` | `192.168.10.15` | IIS, SQL Server, WSUS |
 | WEB01 | `WEB01_10.21` | `WEB01` | `192.168.10.21` | Nginx (reverse proxy / load balancer), Apache × 2, MariaDB, Suricata |
-| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh, Keycloak (SSO) |
-| ELK01 | `ELK01_10.50` | `ELK01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
+| MON01 | `MON01_10.40` | `MON01` | `192.168.10.40` | Zabbix, Wazuh, Prometheus, Grafana |
+| OPS01 | `OPS01_10.41` | `OPS01` | `192.168.10.41` | Ansible control node, Keycloak (SSO) |
+| LOG01 | `LOG01_10.50` | `LOG01` | `192.168.10.50` | Elasticsearch, Logstash, Kibana |
 | LOG02 | `LOG02_10.51` | `LOG02` | `192.168.10.51` | OpenSearch, OpenSearch Dashboards |
 | CLIENT01 | `CLIENT01_dhcp` | `CLIENT01` | DHCP (`192.168.10.100`–`200` pool) | Domain-joined test client |
 
@@ -146,15 +149,16 @@ Two separate naming conventions are used throughout this lab:
 | WINAPP01 | 4 | 8–10 GB | 60 GB | 40 GB *(SQL Server data)* | 100 GB | IIS, SQL Server, WSUS |
 | CLIENT01 | 2 | 2–4 GB | 40 GB | — | 40 GB | Domain-joined test client |
 | WEB01 | 4–6 | 8 GB | 50 GB *(30 OS + 20 swap)* | 20 GB *(LVM demo)* | 70 GB | Nginx LB, Apache × 2, MariaDB, Suricata |
-| MON01 | 4 | 10 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Zabbix/Wazuh data)* | 80 GB | Zabbix, Wazuh, Keycloak (SSO for all dashboards) |
-| ELK01 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Elasticsearch index data)* | 80 GB | Elasticsearch, Logstash, Kibana |
+| MON01 | 4 | 10–12 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Zabbix/Wazuh/Prometheus data)* | 80 GB | Zabbix, Wazuh, Prometheus, Grafana |
+| OPS01 | 2 | 4 GB | 40 GB *(20 OS + 20 swap)* | — | 40 GB | Ansible control node, Keycloak (SSO) |
+| LOG01 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(Elasticsearch index data)* | 80 GB | Elasticsearch, Logstash, Kibana |
 | LOG02 | 4 | 8 GB | 60 GB *(40 OS + 20 swap)* | 20 GB *(OpenSearch data)* | 80 GB | OpenSearch, OpenSearch Dashboards |
-| **Total** | **24–28** | **48–54 GB** | | | **~550 GB** | |
+| **Total** | **26–30** | **48–58 GB** | | | **~590 GB** | |
 
 **Notes:**
 - Swap size follows a fixed rule of **2× RAM**, rounded up to the nearest 10 GB.
 - Any VM with a second virtual disk uses it for a specific hands-on exercise (Storage Spaces, LVM, or dedicated data storage) rather than general capacity — this is called out explicitly in the relevant build document.
-- For JVM-heavy services (MON01, ELK01, LOG02), `vm.swappiness` is tuned low despite the swap partition being present, to avoid JVM garbage-collection stalls caused by aggressive swapping.
+- For JVM-heavy services (MON01, LOG01, LOG02), `vm.swappiness` is tuned low despite the swap partition being present, to avoid JVM garbage-collection stalls caused by aggressive swapping. OPS01 runs no JVM services, so this doesn't apply there.
 
 ---
 
@@ -178,12 +182,13 @@ Documents are numbered in the order they must be executed. Later phases assume e
 | 11 | [`client01-domain-join-wsus-verification.md`](./docs/11-client01-domain-join-wsus-verification.md) | Client verification |
 | 12 | [`mon01-zabbix-server-configuration.md`](./docs/12-mon01-zabbix-server-configuration.md) | Monitoring |
 | 13 | [`mon01-wazuh-manager-configuration.md`](./docs/13-mon01-wazuh-manager-configuration.md) | Monitoring |
-| 14 | [`elk01-elasticsearch-logstash-kibana.md`](./docs/14-elk01-elasticsearch-logstash-kibana.md) | Log analytics |
-| 15 | [`log02-opensearch-deployment.md`](./docs/15-log02-opensearch-deployment.md) | Log analytics |
-| 16 | [`agent-deployment-all-vms.md`](./docs/16-agent-deployment-all-vms.md) | Monitoring rollout |
-| 17 | [`secops-firewall-selinux-hardening.md`](./docs/17-secops-firewall-selinux-hardening.md) | Security hardening |
-| 18 | [`automation-backup-scheduling.md`](./docs/18-automation-backup-scheduling.md) | Automation |
-| 19 | [`keycloak-sso-integration.md`](./docs/19-keycloak-sso-integration.md) | Identity federation & SSO |
+| 14 | [`mon01-prometheus-grafana-monitoring.md`](./docs/14-mon01-prometheus-grafana-monitoring.md) | Monitoring (separate ecosystem from Zabbix) |
+| 15 | [`log01-elasticsearch-logstash-kibana.md`](./docs/15-log01-elasticsearch-logstash-kibana.md) | Log analytics |
+| 16 | [`log02-opensearch-deployment.md`](./docs/16-log02-opensearch-deployment.md) | Log analytics |
+| 17 | [`agent-deployment-all-vms.md`](./docs/17-agent-deployment-all-vms.md) | Monitoring rollout |
+| 18 | [`secops-firewall-selinux-hardening.md`](./docs/18-secops-firewall-selinux-hardening.md) | Security hardening |
+| 19 | [`ops01-ansible-keycloak.md`](./docs/19-ops01-ansible-keycloak.md) | Operations tooling |
+| 20 | [`automation-backup-scheduling.md`](./docs/20-automation-backup-scheduling.md) | Automation |
 
 ### Dependency summary
 
@@ -197,24 +202,35 @@ Golden baselines (04–05)
         │
         ├──► WEB01 + Suricata (07–08)
         │
-        ├──► MON01 (12–13)
-        ├──► ELK01 (14)
-        └──► LOG02 (15)
+        └──► MON01 — Zabbix (12) ──► Wazuh (13) ──► Prometheus & Grafana (14)
                 │
                 ▼
-        Agent deployment (16)
+        LOG01 (15)
                 │
                 ▼
-        SecOps hardening (17)
+        LOG02 (16)
                 │
                 ▼
-        Automation & backup (18)
+        Agent deployment (17)
+        (requires WEB01, MON01, OPS01, LOG01, LOG02
+         to already exist)
                 │
                 ▼
-        Keycloak SSO integration (19)
-        (requires Kibana, OpenSearch Dashboards,
-         Wazuh Dashboard, and Zabbix Frontend to
-         already exist)
+        SecOps hardening (18)
+                │
+                ▼
+        OPS01 — Ansible + Keycloak (19)
+        (new VM: clone golden baseline, domain-join,
+         then Ansible control node — needs SSH access
+         to every other VM already in place — followed
+         by Keycloak, which requires Kibana, OpenSearch
+         Dashboards, Wazuh Dashboard, and Zabbix Frontend
+         to already exist for SSO integration)
+                │
+                ▼
+        Automation & backup (20)
+        (can use Ansible from Step 19 to push
+         scripts/scheduling across every VM)
 ```
 
 ---
