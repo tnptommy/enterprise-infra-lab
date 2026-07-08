@@ -48,7 +48,10 @@ Get-ADComputer "WINAPP01" | Move-ADObject -TargetPath "OU=Servers,DC=corp-lab,DC
 5. Set both fields to WINAPP01's default WSUS HTTP port (`8530`):
    - **Set the intranet update service for detecting updates**: `http://winapp01.corp-lab.com.vn:8530`
    - **Set the intranet statistics server**: `http://winapp01.corp-lab.com.vn:8530`
-6. **OK**.
+     
+   > <img width="1096" height="369" alt="image" src="https://github.com/user-attachments/assets/6eca2951-1c5d-4664-be0b-e6c64bbf4fc9" />
+
+7. **OK**.
 
 ---
 
