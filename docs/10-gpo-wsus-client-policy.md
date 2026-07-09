@@ -48,8 +48,8 @@ Get-ADComputer "WINAPP01" | Move-ADObject -TargetPath "OU=Servers,DC=corp-lab,DC
 5. Set both fields to WINAPP01's default WSUS HTTP port (`8530`):
    - **Set the intranet update service for detecting updates**: `http://winapp01.corp-lab.com.vn:8530`
    - **Set the intranet statistics server**: `http://winapp01.corp-lab.com.vn:8530`
-     
-   > <img width="1096" height="369" alt="image" src="https://github.com/user-attachments/assets/6eca2951-1c5d-4664-be0b-e6c64bbf4fc9" />
+
+     > <img width="1096" height="369" alt="image" src="https://github.com/user-attachments/assets/6eca2951-1c5d-4664-be0b-e6c64bbf4fc9" />
 
 7. **OK**.
 
@@ -63,6 +63,8 @@ Still in the `Baseline-Policy` editor:
 2. Double-click **Configure Automatic Updates** → **Enabled**.
 3. **Configure automatic updating**: option **4 - Auto download and schedule the install**.
 4. **Scheduled install day**: `0 - Every day`. **Scheduled install time**: `03:00` (matches the WSUS synchronization schedule set in [`09`'s Step 9](./09-winapp01-iis-sql-wsus.md#step-9--configure-wsus), so clients install shortly after new updates are approved).
+> <img width="1107" height="346" alt="image" src="https://github.com/user-attachments/assets/7861bf23-6694-42fb-b60b-12e10c332dd4" />
+
 5. **OK**. Close the Group Policy Management Editor.
 
 ---
@@ -77,6 +79,8 @@ This needs its own GPO (rather than living in the shared `Baseline-Policy`) beca
 2. Right-click it → **Edit**.
 3. Navigate to **Computer Configuration → Policies → Administrative Templates → Windows Components → Windows Update → Manage updates offered from Windows Server Update Service**.
 4. Double-click **Enable client-side targeting** → **Enabled**. **Target group name for this computer**: `Servers`.
+> <img width="683" height="279" alt="image" src="https://github.com/user-attachments/assets/68b9240d-c47b-458d-b578-cbd4889457d2" />
+
 5. **OK**. Close the editor.
 6. Right-click the **Servers** OU → **Link an Existing GPO…** → select `WSUS-Servers-Targeting` → **OK**.
 
@@ -88,6 +92,8 @@ Identical process, targeting the `Workstations` group instead:
 
 1. **Group Policy Objects → New**. Name: `WSUS-Workstations-Targeting` → **OK**.
 2. **Edit** → same path as Step 4 → **Enable client-side targeting** → **Enabled** → **Target group name for this computer**: `Workstations`.
+> <img width="514" height="280" alt="image" src="https://github.com/user-attachments/assets/79392f37-750f-459e-8c20-92d3b7f1753a" />
+
 3. **OK**. Close the editor.
 4. Right-click the **Workstations** OU → **Link an Existing GPO…** → select `WSUS-Workstations-Targeting` → **OK**.
 
@@ -140,6 +146,8 @@ On **WINAPP01**, confirm the GPO settings actually landed in the registry:
 gpresult /r
 Get-ItemProperty "HKLM:\Software\Policies\Microsoft\Windows\WindowsUpdate" | Select-Object WUServer, WUStatusServer, TargetGroup, TargetGroupEnabled
 ```
+> <img width="859" height="107" alt="image" src="https://github.com/user-attachments/assets/1fdfe9e5-7895-4e79-bf9b-d70d396b1d52" />
+
 Expect `WUServer`/`WUStatusServer` showing `http://winapp01.corp-lab.com.vn:8530`, `TargetGroup` showing `Servers`, `TargetGroupEnabled` showing `1`.
 
 On **DC01** (or via SSMS/WSUS console), confirm WINAPP01 appears where expected:
