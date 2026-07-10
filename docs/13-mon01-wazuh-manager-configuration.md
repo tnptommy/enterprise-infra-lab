@@ -53,9 +53,20 @@ gcc --version
 cmake --version
 ```
 
-Node.js and Yarn are needed specifically for the Dashboard build — install these now too:
+Node.js and Yarn are needed specifically for the Dashboard build — install these now too. **Rocky Linux 10 dropped `dnf module` streams entirely** (unlike Rocky 9/8, which used `dnf module install nodejs:X`) — install via the NodeSource repository instead, which also pins an exact major version rather than leaving it to whatever AppStream's plain `nodejs` package happens to default to:
+
 ```bash
-sudo dnf module install -y nodejs:20
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+```
+NodeSource's package bundles `npm` directly — no separate `npm` package to install, and no `sudo npm install -g yarn` needed for npm itself. Confirm the version:
+```bash
+node --version
+npm --version
+```
+
+Install Yarn (used by the Dashboard's build tooling in [Step 7](#step-7--build-wazuh-dashboard-from-source)):
+```bash
 sudo npm install -g yarn
 ```
 
