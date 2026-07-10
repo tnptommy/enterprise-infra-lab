@@ -494,10 +494,7 @@ sudo dnf install -y libxml2-devel sqlite-devel oniguruma-devel libcurl-devel \
   --with-curl \
   --enable-cli \
   --with-mysqli \
-  --with-zip \
-  --with-bcmath \
-  --with-mysqli=/opt/mariadb/bin/mariadb_config \
-  --with-pdo-mysql=/opt/mariadb
+  --with-zip
 
 make -j$(nproc)
 sudo make install
