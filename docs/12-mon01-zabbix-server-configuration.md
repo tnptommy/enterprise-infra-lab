@@ -580,6 +580,7 @@ Work through the setup wizard:
 6. **Install** → **Finish**.
 
 You'll land on the Zabbix login page.
+> <img width="1125" height="641" alt="image" src="https://github.com/user-attachments/assets/f75b679f-ca23-49e6-97c7-42f6a4fe6236" />
 
 ---
 
