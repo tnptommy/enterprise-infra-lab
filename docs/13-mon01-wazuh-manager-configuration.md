@@ -205,14 +205,15 @@ plugins.security.ssl.http.pemkey_filepath: certs/indexer-key.pem
 plugins.security.ssl.http.pemtrustedcas_filepath: certs/root-ca.pem
 ```
 
-Set the JVM heap (roughly half this VM's RAM allocated to the Indexer, leaving room for Zabbix, Manager, Dashboard, and the OS):
+Set the JVM heap (roughly half this VM's RAM allocated to the Indexer, leaving room for Zabbix, Manager, Dashboard, and the OS). Append with `tee` rather than editing manually in `vi` — OpenSearch's JVM options parser is strict about format and rejects any leading whitespace on a `-X...` line, which is easy to introduce by accident while typing directly in an editor:
 ```bash
-sudo vi /opt/wazuh-indexer/config/jvm.options
+printf '%s\n' '-Xms4g' '-Xmx4g' | sudo tee -a /opt/wazuh-indexer/config/jvm.options
 ```
+Verify no leading whitespace snuck in regardless:
+```bash
+cat -A /opt/wazuh-indexer/config/jvm.options | grep -A1 "Xms\|Xmx"
 ```
--Xms4g
--Xmx4g
-```
+Each line should end in `-Xms4g$`/`-Xmx4g$` with nothing (no space, no `^I` tab marker) before the leading `-`.
 
 Create a systemd unit (a source build has no packaged one):
 ```bash
