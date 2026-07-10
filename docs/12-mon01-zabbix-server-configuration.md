@@ -494,10 +494,7 @@ sudo dnf install -y libxml2-devel sqlite-devel oniguruma-devel libcurl-devel \
   --with-curl \
   --enable-cli \
   --with-mysqli \
-  --with-zip \
-  --with-bcmath \
-  --with-mysqli=/opt/mariadb/bin/mariadb_config \
-  --with-pdo-mysql=/opt/mariadb
+  --with-zip
 
 make -j$(nproc)
 sudo make install
@@ -607,6 +604,7 @@ Work through the setup wizard:
 6. **Install** → **Finish**.
 
 You'll land on the Zabbix login page.
+> <img width="1125" height="641" alt="image" src="https://github.com/user-attachments/assets/f75b679f-ca23-49e6-97c7-42f6a4fe6236" />
 
 ---
 
