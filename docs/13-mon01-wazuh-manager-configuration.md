@@ -43,10 +43,10 @@ No new VM, disk, or network configuration is needed here — this continues dire
 ```bash
 sudo dnf groupinstall -y "Development Tools"
 sudo dnf install -y cmake gcc gcc-c++ make automake autoconf libtool \
-    openssl-devel policycoreutils-python-utils procps-ng git curl wget \
+    openssl openssl-devel policycoreutils-python-utils procps-ng git curl wget \
     java-21-openjdk-devel libstdc++-static
 ```
-> `libstdc++-static` is required specifically for linking the Wazuh Engine component (`wazuh-engine`) during the Manager build in [Step 2](#step-2--build-wazuh-manager-from-source) — without it, `make` fails partway through with `cannot find -lstdc++`, since Rocky Linux only ships the shared library (`.so`) by default, not the static archive (`.a`) some of Wazuh's build targets link against.
+> `openssl-devel` provides headers/libraries for *building* software against OpenSSL — it does **not** include the `openssl` command-line binary itself. [Step 3](#step-3--generate-certificates)'s `wazuh-certs-tool.sh` shells out to the `openssl` CLI directly, so the plain `openssl` package is included here too, alongside `libstdc++-static` (needed specifically for linking the Wazuh Engine component (`wazuh-engine`) during the Manager build in [Step 2](#step-2--build-wazuh-manager-from-source) — without it, `make` fails partway through with `cannot find -lstdc++`, since Rocky Linux only ships the shared library (`.so`) by default, not the static archive (`.a`) some of Wazuh's build targets link against).
 
 `java-21-openjdk-devel` is for the Indexer/Dashboard builds in later steps ([Step 4](#step-4--build-wazuh-indexer-from-source), [Step 7](#step-7--build-wazuh-dashboard-from-source)) — OpenSearch 3.x (the base Wazuh Indexer 5.0 forks) requires a modern JDK to build. Confirm Rocky 10's system `gcc`/`cmake` versions are new enough before proceeding — the Wazuh source build documentation for older EL7/EL8 systems includes steps to compile GCC 9.4.0 and CMake 3.18.3 from source because those systems shipped compilers too old to build Wazuh; Rocky Linux 10 ships GCC 14.x and CMake well past the minimum, so that extra step isn't needed here:
 ```bash
