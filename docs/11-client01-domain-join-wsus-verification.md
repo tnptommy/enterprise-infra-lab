@@ -60,6 +60,7 @@ slmgr /skms active.orientsoftware.asia:1688
 slmgr /ato
 slmgr /xpr
 ```
+> <img width="1120" height="676" alt="image" src="https://github.com/user-attachments/assets/57b1be83-1bf2-4843-9eb0-3d9a70984b45" />
 
 See the [README's License activation section](../README.md#license-activation) for what this GVLK is and why it's safe to use here.
 
@@ -72,13 +73,14 @@ Same pattern as every other VM in this lab — see [`02-network-architecture-pla
 1. Power off the VM.
 2. **VM → Settings** — confirm the existing adapter is set to **NAT**. This is NIC 1.
 3. **VM → Settings → Add… → Network Adapter** — set the new adapter to **Custom → VMnet1 (Host-only)**. This is NIC 2.
+> <img width="575" height="582" alt="image" src="https://github.com/user-attachments/assets/3457b70e-0a5a-43b2-9fe5-ac2c07946387" />
 4. Power the VM back on.
 5. Rename both adapters for clarity, matching every other Windows VM in this lab:
 
 ```powershell
 Get-NetAdapter
-Rename-NetAdapter -Name "Ethernet" -NewName "NAT-Internet"
-Rename-NetAdapter -Name "Ethernet2" -NewName "Internal-LabNet"
+Rename-NetAdapter -Name "Ethernet0" -NewName "NAT-Internet"
+Rename-NetAdapter -Name "Ethernet1" -NewName "Internal-LabNet"
 ```
 
 6. Leave both on **DHCP** — unlike DC01 and WINAPP01, CLIENT01 doesn't get a static IP; it leases one from DC01's `Clients` scope automatically.
@@ -102,6 +104,8 @@ After reboot, confirm NIC 2 received a lease from DC01's scope:
 ```powershell
 ipconfig /all
 ```
+> <img width="456" height="389" alt="image" src="https://github.com/user-attachments/assets/64c175bc-a0f2-4664-9ec2-e8d3c2ed30a3" />
+
 Expect an address in `192.168.10.100`–`200` on `Internal-LabNet`, with DNS server `192.168.10.10` and connection-specific DNS suffix `corp-lab.com.vn` — both pushed automatically via the DHCP scope options configured in [`06`'s Step 6](./06-dc01-active-directory-dns-dhcp.md#step-6--install-and-configure-dhcp).
 
 If the DNS suffix or server is missing, release/renew:
@@ -137,6 +141,7 @@ On **DC01**:
 1. **Server Manager → Tools → Active Directory Users and Computers**.
 2. Expand `corp-lab.com.vn` → click **Computers** → confirm `CLIENT01` is listed there.
 3. Drag `CLIENT01` onto the **Workstations** OU (or right-click → **Move…** → select **Workstations** → **OK**).
+> <img width="641" height="395" alt="image" src="https://github.com/user-attachments/assets/bc9296cc-cb53-4da9-9673-45a7e88fe731" />
 
 **PowerShell equivalent (optional, run on DC01):**
 ```powershell
@@ -186,6 +191,8 @@ Invoke-WebRequest -Uri "http://web01.corp-lab.com.vn" -UseBasicParsing | Select-
 ```powershell
 Test-Path "\\WINAPP01\CorpShare"
 ```
+<img width="836" height="443" alt="image" src="https://github.com/user-attachments/assets/ecf1ac65-9d99-4a05-9c3e-35bc64063074" />
+
 
 **Reach DC01's Storage Spaces share** (if a share was created on the `D:` volume in [`06`'s Step 8](./06-dc01-active-directory-dns-dhcp.md#step-8--storage-spaces-demo) — otherwise skip, since that step only demonstrated the volume itself, not a share on it):
 ```powershell
@@ -197,6 +204,7 @@ Test-Path "\\DC01\D$"
 nslookup web01.corp-lab.com.vn
 nslookup winapp01.corp-lab.com.vn
 ```
+> <img width="386" height="173" alt="image" src="https://github.com/user-attachments/assets/81f2f038-18a9-4825-af14-ebc1591464cf" />
 
 ---
 
