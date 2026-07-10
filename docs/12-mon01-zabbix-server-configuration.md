@@ -4,12 +4,12 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 
 | Component | Version used | Source |
 |---|---|---|
-| Zabbix | 8.0.0alpha2 (pre-release, built from source) | https://www.zabbix.com/download_sources |
+| Zabbix | 8.0.0beta2 (pre-release, built from source) | https://www.zabbix.com/download_sources |
 | MariaDB | 12.3.2 (built from source) | https://mariadb.org/download/ |
 | Apache HTTP Server | 2.4.68 (built from source) | https://httpd.apache.org/download.cgi |
 | PHP | 8.5.8 (built from source) | https://www.php.net/downloads |
 
-> **Everything on this VM — MariaDB, Apache, PHP, and Zabbix itself — is built from source**, consistent with this guide's general approach (see [`07`](./07-web01-lamp-nginx-loadbalancer.md) for the same pattern applied to WEB01's LAMP stack). MariaDB and Apache/PHP here reuse the exact same versions and build steps already established in `07`, adapted to a single Apache instance (MON01 has no load balancer in front of it, so Apache listens directly on port 80) with PHP linked explicitly against the from-source MariaDB client library rather than a system one. Zabbix itself uses the latest pre-release source tarball (`8.0.0alpha2`) rather than a stable release — pre-release software can have unfinished features and rougher edges; this is a deliberate choice to get hands-on with upcoming Zabbix 8.0 features early, not a recommendation for production use. If you'd rather build the stable, long-term-supported branch instead, substitute the **Zabbix 7.0 LTS** source tarball URL (supported through June 2029) from the same download page in [Step 10](#step-10--download-and-configure-zabbix-source).
+> **Everything on this VM — MariaDB, Apache, PHP, and Zabbix itself — is built from source**, consistent with this guide's general approach (see [`07`](./07-web01-lamp-nginx-loadbalancer.md) for the same pattern applied to WEB01's LAMP stack). MariaDB and Apache/PHP here reuse the exact same versions and build steps already established in `07`, adapted to a single Apache instance (MON01 has no load balancer in front of it, so Apache listens directly on port 80) with PHP linked explicitly against the from-source MariaDB client library rather than a system one. Zabbix itself uses the latest pre-release source tarball (`8.0.0beta2`) rather than a stable release — pre-release software can have unfinished features and rougher edges; this is a deliberate choice to get hands-on with upcoming Zabbix 8.0 features early, not a recommendation for production use. If you'd rather build the stable, long-term-supported branch instead, substitute the **Zabbix 7.0 LTS** source tarball URL (supported through June 2029) from the same download page in [Step 10](#step-10--download-and-configure-zabbix-source).
 
 ---
 
@@ -267,9 +267,10 @@ sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix M
 
 ```bash
 cd ~
-wget https://cdn.zabbix.com/zabbix/sources/development/8.0/zabbix-8.0.0alpha2.tar.gz
-tar -xzvf zabbix-8.0.0alpha2.tar.gz
-cd zabbix-8.0.0alpha2
+wget https://cdn.zabbix.com/zabbix/sources/development/8.0/zabbix-8.0.0beta2.tar.gz
+tar -xzvf zabbix-8.0.0beta2.tar.gz
+mv zabbix-8.0.0beta2 zabbix-8.0.0
+cd zabbix-8.0.0
 
 ./configure \
   --prefix=/opt/zabbix \
@@ -316,7 +317,7 @@ Confirm both binaries built successfully:
 Source builds ship the schema as individual SQL files rather than the single combined `server.sql.gz` the package-based install uses:
 
 ```bash
-cd ~/zabbix-8.0.0alpha2/database/mysql
+cd ~/zabbix-8.0.0/database/mysql
 sudo /opt/mariadb/bin/mariadb --default-character-set=utf8mb4 -u zabbix -p zabbix < schema.sql
 sudo /opt/mariadb/bin/mariadb --default-character-set=utf8mb4 -u zabbix -p zabbix < images.sql
 sudo /opt/mariadb/bin/mariadb --default-character-set=utf8mb4 -u zabbix -p zabbix < data.sql
@@ -516,7 +517,7 @@ echo 'Include conf/extra/httpd-php.conf' | sudo tee -a /opt/apache/conf/httpd.co
 
 sudo rm -rf /opt/apache/htdocs
 sudo mkdir -p /opt/apache/htdocs
-sudo cp -r ~/zabbix-8.0.0alpha2/ui/* /opt/apache/htdocs/
+sudo cp -r ~/zabbix-8.0.0/ui/* /opt/apache/htdocs/
 sudo mkdir -p /opt/apache/htdocs/conf
 sudo chmod 750 /opt/apache/htdocs/conf
 ```
