@@ -505,6 +505,30 @@ sudo cp php.ini-production /opt/apache/php/php.ini
 echo "date.timezone = Asia/Ho_Chi_Minh" | sudo tee -a /opt/apache/php/php.ini
 ```
 
+**Tune PHP settings the Zabbix frontend prerequisites check expects** — the defaults from `php.ini-production` are too low for a few values Zabbix's setup wizard checks in [Step 17](#step-17--start-services-and-complete-the-frontend-wizard); adjust them now rather than discovering the failures mid-wizard:
+
+```bash
+sudo vi /opt/apache/php/php.ini
+```
+Search for each setting with `/` in `vi` (e.g. `/post_max_size`) and change it to the value below:
+
+| Setting | Default | Change to |
+|---|---|---|
+| `post_max_size` | `8M` | `16M` |
+| `max_execution_time` | `30` | `300` |
+| `max_input_time` | `60` | `300` |
+
+Or apply all three non-interactively instead of editing by hand:
+```bash
+sudo sed -i 's/^post_max_size = .*/post_max_size = 16M/' /opt/apache/php/php.ini
+sudo sed -i 's/^max_execution_time = .*/max_execution_time = 300/' /opt/apache/php/php.ini
+sudo sed -i 's/^max_input_time = .*/max_input_time = 300/' /opt/apache/php/php.ini
+
+grep -E "^post_max_size|^max_execution_time|^max_input_time" /opt/apache/php/php.ini
+```
+
+> `post_max_size` needs to be **larger** than PHP's `upload_max_filesize` (default `2M`, well under `16M`) for consistency — Zabbix's own prerequisites check doesn't test `upload_max_filesize` directly, but a mismatched pair can still cause confusing upload failures later (e.g. importing large templates), so this is worth keeping in mind even though it isn't one of the three settings the wizard flags.
+
 > `--with-mysqli`/`--with-pdo-mysql` point explicitly at `/opt/mariadb` here (unlike WEB01's PHP build, which linked against the system MariaDB client libraries) — since MariaDB itself was also built from source into `/opt/mariadb` in Step 7, PHP needs to be told exactly where to find its client library and `mariadb_config` rather than relying on the system's default library paths, which have nothing installed at this location.
 
 Configure Apache to hand `.php` files to PHP, and deploy the Zabbix frontend as the site's document root:
