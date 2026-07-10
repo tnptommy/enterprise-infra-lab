@@ -251,7 +251,7 @@ Store the `zabbix` database user's password in KeePass alongside the MariaDB roo
 sudo dnf groupinstall -y "Development Tools"
 sudo dnf install -y pkgconfig mariadb-devel openssl-devel pcre2-devel \
     libxml2-devel libcurl-devel libevent-devel net-snmp-devel \
-    unixODBC-devel golang git
+    golang git
 ```
 `golang` is required specifically for **Zabbix Agent 2**, which is written in Go rather than C — everything else here is for the C-based `zabbix_server` build.
 
@@ -280,7 +280,6 @@ cd zabbix-8.0.0alpha2
   --with-libpcre2 \
   --with-libevent \
   --with-net-snmp \
-  --with-unixodbc \
   --enable-ipv6
 ```
 
@@ -290,7 +289,8 @@ cd zabbix-8.0.0alpha2
 - `--with-mysql` → links against MariaDB's client libraries (MariaDB is wire-compatible with MySQL, so Zabbix's `--with-mysql` flag works against it correctly).
 - `--with-libpcre2` → regex support for item/trigger matching.
 - `--with-net-snmp` → optional SNMP monitoring support, useful later for network devices.
-- `--with-unixodbc` → optional ODBC database monitoring support.
+
+> `--with-unixodbc` (optional ODBC database monitoring support) is intentionally skipped — `unixODBC-devel` isn't yet available in Rocky Linux 10's repositories (including EPEL/CRB) as of this writing. This only disables the optional ODBC item type; every other Zabbix monitoring feature used in this lab is unaffected.
 
 ---
 
