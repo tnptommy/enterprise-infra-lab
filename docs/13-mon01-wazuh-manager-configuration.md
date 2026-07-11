@@ -48,6 +48,8 @@ sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl enable --now docker
 sudo docker run hello-world
 ```
+> <img width="478" height="247" alt="image" src="https://github.com/user-attachments/assets/f901b351-5a8d-4bf3-8d1a-f9c65a02f131" />
+
 The last command confirms Docker itself works before relying on it for a much longer build later.
 
 ---
