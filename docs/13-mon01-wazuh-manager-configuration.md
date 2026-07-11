@@ -344,43 +344,87 @@ sudo systemctl enable filebeat
 
 ## Step 8 — Build the Wazuh Dashboard package
 
-Same spirit as the Indexer — this uses Wazuh's official parameterized Docker build for the Dashboard.
+Unlike the Indexer's `build.sh`/`assemble.sh` pair, the Dashboard's `build-packages.sh` (found by reading `dev-tools/build-packages/README.md` directly in the checked-out tree — the web documentation's single Docker command doesn't match this tag's actual layout, the same kind of drift already seen with the Indexer) **doesn't build anything itself** — it only packages three separately-built inputs:
 
+1. The Dashboard base (from the `wazuh-dashboard` repo itself)
+2. `wazuh-dashboard-plugins` (a separate repo, itself containing several sub-plugins: `main`, `wazuh-core`, `wazuh-check-updates`)
+3. `wazuh-security-dashboards-plugin` (another separate repo)
+
+Each needs its own Node.js/Yarn build before the final packaging step. Different sub-projects can require different Node versions, so use `nvm` (Node Version Manager) rather than a single system-wide Node install:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+source ~/.bashrc
+nvm --version
+```
+
+**Build 1 — the Dashboard base:**
+```bash
+cd ~/wazuh-dashboard
+nvm install $(cat .nvmrc)
+nvm use $(cat .nvmrc)
+yarn osd bootstrap
+yarn build-platform --linux --skip-os-packages --release
+```
+This is the heaviest of the three builds — expect a substantial amount of time (an hour or more is plausible) and significant CPU/RAM usage, which is normal. Locate the resulting archive once it completes:
+```bash
+find . -maxdepth 2 -iname "*.tar.gz" -newer package.json
+```
+
+**Build 2 — the security plugin:**
+```bash
+mkdir -p ~/wazuh-dashboard/plugins
+cd ~/wazuh-dashboard/plugins
+git clone --depth 1 -b v4.14.6 https://github.com/wazuh/wazuh-security-dashboards-plugin.git
+cd wazuh-security-dashboards-plugin
+nvm use $(cat .nvmrc 2>/dev/null || cat ../../.nvmrc)
+yarn
+yarn build
+find . -maxdepth 2 -iname "*.zip"
+```
+
+**Build 3 — the dashboard plugins (main, wazuh-core, wazuh-check-updates):**
 ```bash
 cd ~
-git clone -b v4.14.6 https://github.com/wazuh/wazuh-dashboard.git
-cd wazuh-dashboard/dev-tools/build-packages/
+git clone --depth 1 -b v4.14.6 https://github.com/wazuh/wazuh-dashboard-plugins.git
+cd wazuh-dashboard-plugins
+nvm install $(cat .nvmrc)
+nvm use $(cat .nvmrc)
+cp -r plugins/* ~/wazuh-dashboard/plugins/
+
+cd ~/wazuh-dashboard/plugins/main
+yarn
+yarn build
+
+cd ~/wazuh-dashboard/plugins/wazuh-core
+yarn
+yarn build
+
+cd ~/wazuh-dashboard/plugins/wazuh-check-updates
+yarn
+yarn build
+```
+Each `yarn build` here produces its own `.zip` under that plugin's `build/` directory:
+```bash
+find ~/wazuh-dashboard/plugins -maxdepth 3 -iname "*.zip"
 ```
 
-Check the Dockerfile's expected build arguments before running (these have shifted between releases, and the values below are current for `4.14.6` at the time of writing — confirm against the actual `.nvmrc` and `package.json` in the checked-out tree if anything fails):
-```bash
-cat ../../.nvmrc
-```
+> **This part of the process is the least precisely documented at the time of writing** — Wazuh's own guidance says only "zip the packages and move them to the packages folder" without specifying whether the three plugin zips from Build 3 need to be combined into one archive before feeding them to `build-packages.sh`'s single `--app` flag, or supplied differently. Inspect what each `yarn build` actually produced (the `find` command above) and compare against what `build-packages.sh --help` (or its source, `cat ~/wazuh-dashboard/dev-tools/build-packages/build-packages.sh`) expects for the `--app` input before proceeding — this is worth reading directly rather than guessing.
 
-Build the Docker image:
+**Final packaging step**, once all three inputs are confirmed:
 ```bash
-sudo docker build \
-  --build-arg NODE_VERSION=$(cat ../../.nvmrc) \
-  --build-arg WAZUH_DASHBOARDS_BRANCH=v4.14.6 \
-  --build-arg WAZUH_DASHBOARDS_PLUGINS=v4.14.6 \
-  --build-arg WAZUH_SECURITY_DASHBOARDS_PLUGIN_BRANCH=v4.14.6 \
-  --build-arg OPENSEARCH_DASHBOARDS_VERSION=2.19.5 \
-  -t wzd:v4.14.6 \
-  -f wazuh-dashboard.Dockerfile .
+cd ~/wazuh-dashboard/dev-tools/build-packages/
+bash build-packages.sh \
+    --app "file://$(find ~/wazuh-dashboard/plugins -iname '*.zip' | head -1)" \
+    --base "file://$(find ~/wazuh-dashboard -maxdepth 1 -iname '*.tar.gz')" \
+    --security "file://$(find ~/wazuh-dashboard/plugins/wazuh-security-dashboards-plugin -iname '*.zip')" \
+    --rpm --debug
 ```
-This is the heaviest build in this document — a full Node.js/Webpack build of an OpenSearch Dashboards fork plus several Wazuh plugin repositories, all inside Docker. Expect it to take a substantial amount of time (well over an hour is plausible) and to use significant CPU/RAM during the build — this is normal, not a sign something is wrong, unless it stalls completely or the container gets OOM-killed (check `sudo docker stats` in a second terminal if you're unsure it's still progressing).
-
-Once the image build completes, run a container from it and copy the finished package out:
-```bash
-sudo docker create --name wazuh-dashboard-package wzd:v4.14.6
-mkdir -p ~/wazuh-dashboard-packages
-sudo docker cp wazuh-dashboard-package:/home/node/packages/. ~/wazuh-dashboard-packages/
-sudo docker rm wazuh-dashboard-package
-```
+Adjust the three `file://` paths to match whatever the `find` commands above actually returned if they differ from a single unambiguous match.
 
 Confirm the package exists:
 ```bash
-ls ~/wazuh-dashboard-packages/*.rpm
+find ~/wazuh-dashboard/dev-tools/build-packages -iname "*.rpm"
 ```
 
 ---
@@ -388,7 +432,11 @@ ls ~/wazuh-dashboard-packages/*.rpm
 ## Step 9 — Install and configure Wazuh Dashboard
 
 ```bash
-sudo rpm -ivh ~/wazuh-dashboard-packages/wazuh-dashboard-4.14.6-*.rpm
+Install whatever `.rpm` the previous step actually produced — confirm the exact location and filename first:
+```bash
+find ~/wazuh-dashboard/dev-tools/build-packages -iname "*.rpm"
+sudo rpm -ivh <path-from-the-find-command-above>
+```
 ```
 
 Copy certificates:
