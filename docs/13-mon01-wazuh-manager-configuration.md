@@ -170,14 +170,14 @@ Expect a file named like `wazuh-indexer-4.14.6-0.x86_64.rpm` (not `wazuh-indexer
 
 ## Step 5 — Install and configure Wazuh Indexer
 
-```bash
+
 Install whatever `.rpm` the assemble stage actually produced — confirm the exact filename first rather than assuming it matches this document's example:
 ```bash
 ls ~/wazuh-indexer/artifacts/dist/*.rpm
 sudo rpm -ivh ~/wazuh-indexer/artifacts/dist/wazuh-indexer-4.14.6-0.x86_64.rpm
 ```
 Adjust the filename in the install command to match whatever `ls` actually showed if it differs.
-```
+
 
 Copy the generated certificates into place:
 ```bash
