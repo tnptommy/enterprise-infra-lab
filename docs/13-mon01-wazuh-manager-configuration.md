@@ -2,7 +2,7 @@
 
 This document adds **Wazuh 4.14.6** to MON01 alongside the Zabbix stack from [`12`](./12-mon01-zabbix-server-configuration.md) — Wazuh Indexer (an OpenSearch fork), Wazuh Manager (the analysis engine agents report to), Filebeat (ships Manager alerts to the Indexer), and Wazuh Dashboard (the web UI). Every component is **built from source**, using Wazuh's own officially documented packaging pipeline rather than downloading pre-built packages.
 
-No new VM or network configuration is needed here — this continues directly on MON01 as already built in [`12`](./12-mon01-zabbix-server-configuration.md). A new disk-space consideration: building the Indexer and Dashboard from source needs meaningful scratch space (Docker images, Node/Gradle caches) — confirm at least 15–20 GB free on the OS disk before starting, beyond what's already accounted for in MON01's [VM specification](./12-mon01-zabbix-server-configuration.md#vm-specification).
+No new VM or network configuration is needed here — this continues directly on MON01 as already built in [`12`](./12-mon01-zabbix-server-configuration.md). A new disk-space consideration, confirmed by actually running this build rather than estimated in advance: the Indexer build alone (Gradle cache + source tree) used roughly **9 GB**, and pushing MON01's 60 GB OS disk past 90% used triggers a real, confusing failure later — OpenSearch's disk watermark silently blocks creating its own security index, surfacing in [Step 6](#step-6--initialize-indexer-security) as an error that looks unrelated to disk space at all. [Step 5](#step-5--install-and-configure-wazuh-indexer) includes a cleanup step for this; the Dashboard build in [Step 8](#step-8--build-the-wazuh-dashboard-package) will add its own significant Docker/Node scratch space on top. Confirm at least 20 GB free before starting, and don't skip the cleanup step once the Indexer package is built.
 
 | Component | Version used | Source |
 |---|---|---|
@@ -192,6 +192,23 @@ This glob matches the full package (e.g. `wazuh-indexer_4.14.6-0_x86_64_3eb218fe
 ls ~/wazuh-indexer/artifacts/dist/wazuh-indexer_4.14.6-*_x86_64_*.rpm
 ```
 
+**Clean up build artifacts now, before they cause a real problem later.** The Gradle build cache (`~/.gradle`, ~3.5 GB), the checked-out `wazuh-indexer` source tree (~3.4 GB), and the earlier `wazuh-manager-src` tree (~1.9 GB) together add up to roughly 9 GB — easily enough to push a 60 GB OS disk past 90% used. This matters more than it might seem: OpenSearch enforces a **disk watermark** that silently blocks creating new indices once usage crosses a threshold (90% by default), which surfaces later in [Step 6](#step-6--initialize-indexer-security) as a confusing `cluster create-index blocked (api)` error that has nothing to do with certificates or configuration — it's purely about running low on disk space at the exact moment the security index needs to be created. Avoid hitting that entirely by cleaning up now, once the `.rpm` above is safely built:
+```bash
+df -h /
+```
+If usage is climbing toward 90%, back up just the built package first (small, worth keeping in case you need to reinstall on another VM later), then remove the much larger source/cache directories — the Manager and Indexer are both already installed at this point and don't need their source trees anymore:
+```bash
+mkdir -p ~/wazuh-rpm-backup
+cp ~/wazuh-indexer/artifacts/dist/*.rpm ~/wazuh-rpm-backup/
+
+rm -rf ~/.gradle
+rm -rf ~/wazuh-indexer
+rm -rf ~/wazuh-manager-src
+
+df -h /
+```
+Aim to get back under 80% used — comfortable headroom before [Step 8](#step-8--build-the-wazuh-dashboard-package)'s Docker-based Dashboard build, which will consume its own significant scratch space.
+
 Copy the generated certificates into place:
 ```bash
 sudo mkdir -p /etc/wazuh-indexer/certs
@@ -234,6 +251,18 @@ sudo systemctl start wazuh-indexer
 
 sudo /usr/share/wazuh-indexer/bin/indexer-security-init.sh
 ```
+
+> **If this fails with `index_create_block_exception... blocked by: [FORBIDDEN/10/cluster create-index blocked (api)]`**, it's the disk watermark issue flagged in [Step 5](#step-5--install-and-configure-wazuh-indexer) — OpenSearch refuses to create the `.opendistro_security` index because disk usage crossed its safety threshold (default 90%) at some point, most likely during the build in [Step 4](#step-4--build-the-wazuh-indexer-package). Confirm and fix:
+> ```bash
+> df -h /
+> ```
+> If usage is still high, free up space (the cleanup commands in Step 5 are the first thing to check — confirm they were actually run). Once usage is comfortably under 90%, **the block does not always clear itself immediately** even though the underlying disk pressure is gone — retrying `indexer-security-init.sh` a couple of times a minute or so apart is often enough once there's real headroom again. If it's still stuck, force the block to clear explicitly:
+> ```bash
+> curl -k -u admin:admin -X PUT "https://127.0.0.1:9200/_cluster/settings" \
+>   -H 'Content-Type: application/json' \
+>   -d '{"transient": {"cluster.blocks.create_index": null}, "persistent": {"cluster.blocks.create_index": null}}'
+> ```
+> Then re-run `indexer-security-init.sh` again.
 
 Verify:
 ```bash
