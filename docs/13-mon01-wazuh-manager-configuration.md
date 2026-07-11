@@ -48,6 +48,8 @@ sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl enable --now docker
 sudo docker run hello-world
 ```
+> <img width="478" height="247" alt="image" src="https://github.com/user-attachments/assets/f901b351-5a8d-4bf3-8d1a-f9c65a02f131" />
+
 The last command confirms Docker itself works before relying on it for a much longer build later.
 
 ---
@@ -71,21 +73,25 @@ make -j$(nproc) TARGET=server
 Run the installer from the top of the extracted source tree (not `src/`):
 ```bash
 cd ~/wazuh-manager-src
-sudo ./install
+sudo ./install.sh
 ```
 This launches an interactive wizard:
 1. Language: `en`.
+> <img width="374" height="205" alt="image" src="https://github.com/user-attachments/assets/5bfb0fc0-164f-4788-8a84-3a395b32a724" />
 2. Confirm you've read the notice → **Enter**.
 3. **1. Install Wazuh manager** (not agent).
 4. Accept the default installation prefix (`/var/ossec` in 4.x).
 5. Decline email notifications setup for this lab.
 6. Accept default install of remaining optional modules → **Enter** through prompts.
+> <img width="570" height="593" alt="image" src="https://github.com/user-attachments/assets/70571e83-7756-40e4-abe0-f37c59e2b51a" />
 7. Wait for compilation and installation to complete.
 
 Confirm it built and installed correctly:
 ```bash
 sudo /var/ossec/bin/wazuh-control status
 ```
+> <img width="414" height="191" alt="image" src="https://github.com/user-attachments/assets/4b739b5d-97c1-40c4-9f42-310b7baddfa5" />
+
 (Expect it to report processes as **not running** at this point — nothing has been started yet, this just confirms the binaries exist.)
 
 ---
