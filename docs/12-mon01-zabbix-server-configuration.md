@@ -9,7 +9,7 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 | Apache HTTP Server | 2.4.68 (built from source) | https://httpd.apache.org/download.cgi |
 | PHP | 8.5.8 (built from source) | https://www.php.net/downloads |
 
-> **Everything on this VM — MariaDB, Apache, PHP, and Zabbix itself — is built from source**, consistent with this guide's general approach (see [`07`](./07-web01-lamp-nginx-loadbalancer.md) for the same pattern applied to WEB01's LAMP stack). MariaDB and Apache/PHP here reuse the exact same versions and build steps already established in `07`, adapted to a single Apache instance (MON01 has no load balancer in front of it, so Apache listens directly on port 80) with PHP linked explicitly against the from-source MariaDB client library rather than a system one. Zabbix itself uses the latest pre-release source tarball (`8.0.0beta2`) rather than a stable release — pre-release software can have unfinished features and rougher edges; this is a deliberate choice to get hands-on with upcoming Zabbix 8.0 features early, not a recommendation for production use. If you'd rather build the stable, long-term-supported branch instead, substitute the **Zabbix 7.0 LTS** source tarball URL (supported through June 2029) from the same download page in [Step 10](#step-10--download-and-configure-zabbix-source).
+> **Everything on this VM — MariaDB, Apache, PHP, and Zabbix itself — is built from source**, consistent with this guide's general approach (see [`07`](./07-web01-lamp-nginx-loadbalancer.md) for the same pattern applied to WEB01's LAMP stack). MariaDB and Apache/PHP here reuse the exact same versions and build steps already established in `07`, adapted to a single Apache instance (MON01 has no load balancer in front of it, so Apache listens directly on port 80) with PHP linked explicitly against the from-source MariaDB client library rather than a system one. Zabbix itself uses the latest pre-release source tarball (`8.0.0beta2`) rather than a stable release — pre-release software can have unfinished features and rougher edges; this is a deliberate choice to get hands-on with upcoming Zabbix 8.0 features early, not a recommendation for production use. If you'd rather build the stable, long-term-supported branch instead, substitute the **Zabbix 7.0 LTS** source tarball URL (supported through June 2029) from the same download page in [Step 11](#step-11--download-and-configure-zabbix-source).
 
 ---
 
@@ -20,24 +20,25 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 - [Step 2 — Set hostname and static IP](#step-2--set-hostname-and-static-ip)
 - [Step 3 — Grow the root filesystem](#step-3--grow-the-root-filesystem)
 - [Step 4 — Create swap](#step-4--create-swap)
-- [Step 5 — Domain-join](#step-5--domain-join)
-- [Step 6 — Add DNS records on DC01](#step-6--add-dns-records-on-dc01)
-- [Step 7 — Build MariaDB from source](#step-7--build-mariadb-from-source)
-- [Step 8 — Create the Zabbix database](#step-8--create-the-zabbix-database)
-- [Step 9 — Install Zabbix build dependencies](#step-9--install-zabbix-build-dependencies)
-- [Step 10 — Download and configure Zabbix source](#step-10--download-and-configure-zabbix-source)
-- [Step 11 — Compile and install Zabbix server and agent 2](#step-11--compile-and-install-zabbix-server-and-agent-2)
-- [Step 12 — Import the initial schema](#step-12--import-the-initial-schema)
-- [Step 13 — Configure the Zabbix server and agent](#step-13--configure-the-zabbix-server-and-agent)
-- [Step 14 — Create systemd services](#step-14--create-systemd-services)
-- [Step 15 — Build Apache and PHP from source, deploy the frontend](#step-15--build-apache-and-php-from-source-deploy-the-frontend)
-- [Step 16 — SELinux and firewall](#step-16--selinux-and-firewall)
-- [Step 17 — Start services and complete the frontend wizard](#step-17--start-services-and-complete-the-frontend-wizard)
-- [Step 18 — Change the default Admin password](#step-18--change-the-default-admin-password)
-- [Step 19 — Add MON01 as the first monitored host](#step-19--add-mon01-as-the-first-monitored-host)
-- [Step 20 — Create triggers of different types](#step-20--create-triggers-of-different-types)
-- [Step 21 — Build a basic dashboard](#step-21--build-a-basic-dashboard)
-- [Step 22 — Final verification checklist](#step-22--final-verification-checklist)
+- [Step 5 — Partition and mount the data disk](#step-5--partition-and-mount-the-data-disk)
+- [Step 6 — Domain-join](#step-6--domain-join)
+- [Step 7 — Add DNS records on DC01](#step-7--add-dns-records-on-dc01)
+- [Step 8 — Build MariaDB from source](#step-8--build-mariadb-from-source)
+- [Step 9 — Create the Zabbix database](#step-9--create-the-zabbix-database)
+- [Step 10 — Install Zabbix build dependencies](#step-10--install-zabbix-build-dependencies)
+- [Step 11 — Download and configure Zabbix source](#step-11--download-and-configure-zabbix-source)
+- [Step 12 — Compile and install Zabbix server and agent 2](#step-12--compile-and-install-zabbix-server-and-agent-2)
+- [Step 13 — Import the initial schema](#step-13--import-the-initial-schema)
+- [Step 14 — Configure the Zabbix server and agent](#step-14--configure-the-zabbix-server-and-agent)
+- [Step 15 — Create systemd services](#step-15--create-systemd-services)
+- [Step 16 — Build Apache and PHP from source, deploy the frontend](#step-16--build-apache-and-php-from-source-deploy-the-frontend)
+- [Step 17 — SELinux and firewall](#step-17--selinux-and-firewall)
+- [Step 18 — Start services and complete the frontend wizard](#step-18--start-services-and-complete-the-frontend-wizard)
+- [Step 19 — Change the default Admin password](#step-19--change-the-default-admin-password)
+- [Step 20 — Add MON01 as the first monitored host](#step-20--add-mon01-as-the-first-monitored-host)
+- [Step 21 — Create triggers of different types](#step-21--create-triggers-of-different-types)
+- [Step 22 — Build a basic dashboard](#step-22--build-a-basic-dashboard)
+- [Step 23 — Final verification checklist](#step-23--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -143,7 +144,48 @@ sudo sysctl -p
 
 ---
 
-## Step 5 — Domain-join
+## Step 5 — Partition and mount the data disk
+
+The 20 GB second disk added in [Step 1](#step-1--clone-the-golden-baseline-and-provision-disks) exists but hasn't been used yet — mount it now, before installing anything, so MariaDB and Wazuh Indexer (added in [`13`](./13-mon01-wazuh-manager-configuration.md)) can be pointed at it from the start rather than needing a live data migration later. This matters more than it might seem: without this, every data-heavy service defaults to writing into the 60 GB OS disk, which fills up far faster than expected once Zabbix's database and Wazuh's indices start accumulating real data — a problem discovered the hard way while building this exact VM, where the OS disk hit 93% used partway through the Wazuh Indexer build in [`13`](./13-mon01-wazuh-manager-configuration.md).
+
+Identify the disk — on an NVMe-based VM (per the [golden baseline's device-naming note](./05-golden-baseline-rocky-linux-10.md#cloning-this-baseline-later)) the second disk typically appears as `/dev/nvme0n2`, distinct from the OS disk's `/dev/nvme0n1`:
+```bash
+lsblk
+```
+
+Partition and format it:
+```bash
+sudo parted /dev/nvme0n2 --script mklabel gpt mkpart primary 0% 100%
+lsblk
+```
+Confirm the new partition (`/dev/nvme0n2p1` for NVMe, or `/dev/sdb1` on a SATA/SCSI-based VM) shows close to the full 20 GB before formatting — a partition showing only a few dozen MB means `parted`'s `mkpart` range wasn't applied correctly; re-run `parted /dev/nvme0n2 --script rm 1` and retry the `mkpart` command above rather than formatting a wrongly-sized partition.
+
+```bash
+sudo mkfs.xfs /dev/nvme0n2p1
+sudo mkdir -p /mnt/data
+sudo mount /dev/nvme0n2p1 /mnt/data
+```
+
+Add it to `/etc/fstab` for it to persist across reboots — get the UUID first, and **do not wrap it in quotes** in the fstab line, which is a syntax `mount -a` silently mishandles:
+```bash
+sudo blkid /dev/nvme0n2p1
+```
+```bash
+echo 'UUID=<uuid-from-above> /mnt/data xfs defaults 0 0' | sudo tee -a /etc/fstab
+sudo systemctl daemon-reload
+```
+
+Test the fstab entry actually works before trusting it to survive a real reboot:
+```bash
+sudo umount /mnt/data
+sudo mount -a
+df -h /mnt/data
+```
+Expect `/mnt/data` to remount cleanly, showing close to 20 GB available.
+
+---
+
+## Step 6 — Domain-join
 
 ```bash
 sudo dnf install -y realmd sssd-common sssd-ad adcli krb5-workstation samba-common-tools oddjob oddjob-mkhomedir
@@ -160,7 +202,7 @@ realm list
 
 ---
 
-## Step 6 — Add DNS records on DC01
+## Step 7 — Add DNS records on DC01
 
 MON01 needs the same manual forward `A` and reverse `PTR` records every Linux VM in this lab requires, per [`06`'s DNS section](./06-dc01-active-directory-dns-dhcp.md#step-5--configure-dns) — `realmd`/`sssd` domain-join doesn't register DNS automatically the way Windows does.
 
@@ -172,9 +214,9 @@ Add-DnsServerResourceRecordPtr -ZoneName "10.168.192.in-addr.arpa" -Name "40" -P
 
 ---
 
-## Step 7 — Build MariaDB from source
+## Step 8 — Build MariaDB from source
 
-Same version and build process as [`07`'s MariaDB build](./07-web01-lamp-nginx-loadbalancer.md#step-8--build-mariadb-from-source):
+Same version and build process as [`07`'s MariaDB build](./07-web01-lamp-nginx-loadbalancer.md#step-8--build-mariadb-from-source), with one difference: the data directory points at the data disk mounted in [Step 5](#step-5--partition-and-mount-the-data-disk) (`/mnt/data/mariadb`) rather than living on the OS disk under `/opt/mariadb/data` — MariaDB's actual data grows continuously and is exactly the kind of thing that disk was set aside for:
 
 ```bash
 cd ~
@@ -187,14 +229,14 @@ sudo dnf install -y cmake ncurses-devel bison libxml2-devel gnutls-devel \
     openssl-devel libaio-devel
 
 mkdir build && cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/opt/mariadb -DMYSQL_DATADIR=/opt/mariadb/data
+cmake .. -DCMAKE_INSTALL_PREFIX=/opt/mariadb -DMYSQL_DATADIR=/mnt/data/mariadb
 make -j$(nproc)
 sudo make install
 
 sudo useradd -r -s /sbin/nologin mysql
-sudo mkdir -p /opt/mariadb/data
-sudo chown -R mysql:mysql /opt/mariadb
-sudo /opt/mariadb/scripts/mariadb-install-db --user=mysql --datadir=/opt/mariadb/data --basedir=/opt/mariadb
+sudo mkdir -p /mnt/data/mariadb
+sudo chown -R mysql:mysql /opt/mariadb /mnt/data/mariadb
+sudo /opt/mariadb/scripts/mariadb-install-db --user=mysql --datadir=/mnt/data/mariadb --basedir=/opt/mariadb
 ```
 
 Create a systemd unit:
@@ -207,7 +249,7 @@ After=network.target
 [Service]
 User=mysql
 Group=mysql
-ExecStart=/opt/mariadb/bin/mariadbd --datadir=/opt/mariadb/data --basedir=/opt/mariadb
+ExecStart=/opt/mariadb/bin/mariadbd --datadir=/mnt/data/mariadb --basedir=/opt/mariadb
 Restart=on-failure
 
 [Install]
@@ -226,7 +268,7 @@ Answer **Y** to every prompt, setting a strong root password — store it in [Ke
 
 ---
 
-## Step 8 — Create the Zabbix database
+## Step 9 — Create the Zabbix database
 
 ```bash
 sudo /opt/mariadb/bin/mariadb -u root -p
@@ -245,7 +287,7 @@ Store the `zabbix` database user's password in KeePass alongside the MariaDB roo
 
 ---
 
-## Step 9 — Install Zabbix build dependencies
+## Step 10 — Install Zabbix build dependencies
 
 ```bash
 sudo dnf groupinstall -y "Development Tools"
@@ -263,7 +305,7 @@ sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix M
 
 ---
 
-## Step 10 — Download and configure Zabbix source
+## Step 11 — Download and configure Zabbix source
 
 ```bash
 cd ~
@@ -286,7 +328,7 @@ cd zabbix-8.0.0
 
 **Explanation of the key flags:**
 - `--enable-server` → builds `zabbix_server`, the core monitoring daemon.
-- `--enable-agent2` → builds `zabbix_agent2` (Go-based) alongside it, so MON01 can monitor itself in [Step 19](#step-19--add-mon01-as-the-first-monitored-host) without a separate build pass.
+- `--enable-agent2` → builds `zabbix_agent2` (Go-based) alongside it, so MON01 can monitor itself in [Step 20](#step-20--add-mon01-as-the-first-monitored-host) without a separate build pass.
 - `--with-mysql` → links against MariaDB's client libraries (MariaDB is wire-compatible with MySQL, so Zabbix's `--with-mysql` flag works against it correctly).
 - `--with-libpcre2` → regex support for item/trigger matching.
 - `--with-net-snmp` → optional SNMP monitoring support, useful later for network devices.
@@ -295,14 +337,14 @@ cd zabbix-8.0.0
 
 ---
 
-## Step 11 — Compile and install Zabbix server and agent 2
+## Step 12 — Compile and install Zabbix server and agent 2
 
 ```bash
 make -j$(nproc)
 sudo make install
 ```
 
-This installs binaries to `/opt/zabbix/sbin/` (`zabbix_server`) and `/opt/zabbix/sbin/` (`zabbix_agent2`), config files to `/opt/zabbix/etc/`, and the frontend's PHP source to the extracted `ui/` directory (copied separately in [Step 15](#step-15--deploy-the-php-frontend) — `make install` doesn't handle the frontend, since it's plain PHP with no compilation step).
+This installs binaries to `/opt/zabbix/sbin/` (`zabbix_server`) and `/opt/zabbix/sbin/` (`zabbix_agent2`), config files to `/opt/zabbix/etc/`, and the frontend's PHP source to the extracted `ui/` directory (copied separately in [Step 16](#step-16--build-apache-and-php-from-source-deploy-the-frontend) — `make install` doesn't handle the frontend, since it's plain PHP with no compilation step).
 
 Confirm both binaries built successfully:
 ```bash
@@ -312,7 +354,7 @@ Confirm both binaries built successfully:
 
 ---
 
-## Step 12 — Import the initial schema
+## Step 13 — Import the initial schema
 
 Source builds ship the schema as individual SQL files rather than the single combined `server.sql.gz` the package-based install uses:
 
@@ -331,7 +373,7 @@ sudo /opt/mariadb/bin/mariadb -u root -p -e "SET GLOBAL log_bin_trust_function_c
 
 ---
 
-## Step 13 — Configure the Zabbix server and agent
+## Step 14 — Configure the Zabbix server and agent
 
 ```bash
 sudo vi /opt/zabbix/etc/zabbix_server.conf
@@ -360,7 +402,7 @@ sudo chown -R zabbix:zabbix /var/log/zabbix /var/run/zabbix /opt/zabbix/etc
 
 ---
 
-## Step 14 — Create systemd services
+## Step 15 — Create systemd services
 
 Source installs don't ship systemd unit files the way packages do — create them manually:
 
@@ -406,7 +448,7 @@ sudo systemctl daemon-reload
 
 ---
 
-## Step 15 — Build Apache and PHP from source, deploy the frontend
+## Step 16 — Build Apache and PHP from source, deploy the frontend
 
 **Apache** — same version as [`07`'s Apache build](./07-web01-lamp-nginx-loadbalancer.md#step-9--build-apache-instance-1--php), single instance here (no load balancer in front of MON01, so it listens directly on port 80):
 ```bash
@@ -494,7 +536,10 @@ sudo dnf install -y libxml2-devel sqlite-devel oniguruma-devel libcurl-devel \
   --with-curl \
   --enable-cli \
   --with-mysqli \
-  --with-zip
+  --with-zip \
+  --with-bcmath \
+  --with-mysqli=/opt/mariadb/bin/mariadb_config \
+  --with-pdo-mysql=/opt/mariadb
 
 make -j$(nproc)
 sudo make install
@@ -502,7 +547,7 @@ sudo cp php.ini-production /opt/apache/php/php.ini
 echo "date.timezone = Asia/Ho_Chi_Minh" | sudo tee -a /opt/apache/php/php.ini
 ```
 
-**Tune PHP settings the Zabbix frontend prerequisites check expects** — the defaults from `php.ini-production` are too low for a few values Zabbix's setup wizard checks in [Step 17](#step-17--start-services-and-complete-the-frontend-wizard); adjust them now rather than discovering the failures mid-wizard:
+**Tune PHP settings the Zabbix frontend prerequisites check expects** — the defaults from `php.ini-production` are too low for a few values Zabbix's setup wizard checks in [Step 18](#step-18--start-services-and-complete-the-frontend-wizard); adjust them now rather than discovering the failures mid-wizard:
 
 ```bash
 sudo vi /opt/apache/php/php.ini
@@ -566,7 +611,7 @@ sudo systemctl daemon-reload
 
 ---
 
-## Step 16 — SELinux and firewall
+## Step 17 — SELinux and firewall
 
 ```bash
 sudo firewall-cmd --permanent --add-service=http
@@ -584,7 +629,7 @@ sudo firewall-cmd --reload
 
 ---
 
-## Step 17 — Start services and complete the frontend wizard
+## Step 18 — Start services and complete the frontend wizard
 
 ```bash
 sudo systemctl enable --now zabbix-server zabbix-agent2 apache
@@ -604,11 +649,10 @@ Work through the setup wizard:
 6. **Install** → **Finish**.
 
 You'll land on the Zabbix login page.
-> <img width="1125" height="641" alt="image" src="https://github.com/user-attachments/assets/f75b679f-ca23-49e6-97c7-42f6a4fe6236" />
 
 ---
 
-## Step 18 — Change the default Admin password
+## Step 19 — Change the default Admin password
 
 1. Log in with the default credentials: username `Admin`, password `zabbix`.
 2. Immediately change it: click the user icon (top right) → **Profile** → **Change password**.
@@ -616,7 +660,7 @@ You'll land on the Zabbix login page.
 
 ---
 
-## Step 19 — Add MON01 as the first monitored host
+## Step 20 — Add MON01 as the first monitored host
 
 Full agent rollout to every other VM in this lab happens in [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) — this step just gets one working example end-to-end using the agent already built on MON01 itself in Step 11.
 
@@ -631,7 +675,7 @@ Confirm the agent is reachable — after a minute or two, **Data collection → 
 
 ---
 
-## Step 20 — Create triggers of different types
+## Step 21 — Create triggers of different types
 
 The **Linux by Zabbix agent** template already ships with a comprehensive set of triggers (high CPU, low disk space, etc.). Rather than duplicate those, this step builds a small set of custom triggers that each demonstrate a distinct trigger mechanism Zabbix supports, using MON01 itself as the test host.
 
@@ -668,7 +712,7 @@ This means: if the host is already flagged as not reporting at all, the (now-mea
 
 ---
 
-## Step 21 — Build a basic dashboard
+## Step 22 — Build a basic dashboard
 
 1. **Dashboards → All dashboards → Create dashboard**.
 2. **Name**: `Infrastructure Overview`.
@@ -679,7 +723,7 @@ This means: if the host is already flagged as not reporting at all, the (now-mea
 
 ---
 
-## Step 22 — Final verification checklist
+## Step 23 — Final verification checklist
 
 1. **Zabbix server running:**
 ```bash
@@ -698,7 +742,7 @@ sudo tail -20 /var/log/zabbix/zabbix_server.log
 
 4. **MON01 host shows green (reachable) in Data collection → Hosts.**
 
-5. **Triggers were created** (repeat the checks from [Step 20](#step-20--create-triggers-of-different-types)).
+5. **Triggers were created** (repeat the checks from [Step 21](#step-21--create-triggers-of-different-types)).
 
 6. **Domain-join succeeded:**
 ```bash

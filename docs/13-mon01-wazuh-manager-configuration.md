@@ -2,7 +2,7 @@
 
 This document adds **Wazuh 4.14.6** to MON01 alongside the Zabbix stack from [`12`](./12-mon01-zabbix-server-configuration.md) — Wazuh Indexer (an OpenSearch fork), Wazuh Manager (the analysis engine agents report to), Filebeat (ships Manager alerts to the Indexer), and Wazuh Dashboard (the web UI). Every component is **built from source**, using Wazuh's own officially documented packaging pipeline rather than downloading pre-built packages.
 
-No new VM or network configuration is needed here — this continues directly on MON01 as already built in [`12`](./12-mon01-zabbix-server-configuration.md). A new disk-space consideration, confirmed by actually running this build rather than estimated in advance: the Indexer build alone (Gradle cache + source tree) used roughly **9 GB**, and pushing MON01's 60 GB OS disk past 90% used triggers a real, confusing failure later — OpenSearch's disk watermark silently blocks creating its own security index, surfacing in [Step 6](#step-6--initialize-indexer-security) as an error that looks unrelated to disk space at all. [Step 5](#step-5--install-and-configure-wazuh-indexer) includes a cleanup step for this; the Dashboard build in [Step 8](#step-8--build-the-wazuh-dashboard-package) will add its own significant Docker/Node scratch space on top. Confirm at least 20 GB free before starting, and don't skip the cleanup step once the Indexer package is built.
+No new VM or network configuration is needed here — this continues directly on MON01 as already built in [`12`](./12-mon01-zabbix-server-configuration.md), including the mounted data disk from [`12`'s Step 5](./12-mon01-zabbix-server-configuration.md#step-5--partition-and-mount-the-data-disk) (`/mnt/data`) — confirm that's mounted (`df -h /mnt/data`) before starting, since [Step 5](#step-5--install-and-configure-wazuh-indexer) below points the Indexer's data path there directly. A disk-space consideration beyond that, confirmed by actually running this build rather than estimated in advance: the Indexer build itself (Gradle cache + source tree) used roughly **9 GB** on the OS disk regardless of where the Indexer's own data ends up living — and pushing MON01's 60 GB OS disk past 90% used during the build triggers a real, confusing failure later, unrelated to the data-disk question above. OpenSearch's disk watermark silently blocks creating its own security index, surfacing in [Step 6](#step-6--initialize-indexer-security) as an error that looks unrelated to disk space at all. [Step 5](#step-5--install-and-configure-wazuh-indexer) includes a build-artifact cleanup step for this; the Dashboard build in [Step 8](#step-8--build-the-wazuh-dashboard-package) will add its own significant Docker/Node scratch space on top. Confirm at least 20 GB free on the OS disk before starting, and don't skip the cleanup step once the Indexer package is built.
 
 | Component | Version used | Source |
 |---|---|---|
@@ -221,6 +221,15 @@ sudo chmod 500 /etc/wazuh-indexer/certs
 sudo chmod 400 /etc/wazuh-indexer/certs/*
 sudo chown -R wazuh-indexer:wazuh-indexer /etc/wazuh-indexer/certs
 ```
+
+**Point the Indexer's data path at the data disk mounted in [`12`'s Step 5](./12-mon01-zabbix-server-configuration.md#step-5--partition-and-mount-the-data-disk) (`/mnt/data`), instead of the OS disk default.** OpenSearch indices grow continuously and are exactly the kind of thing that disk was set aside for — this avoids the disk-full crisis that hit the OS disk while actually building this VM (documented above in this same step):
+```bash
+sudo mkdir -p /mnt/data/wazuh-indexer
+sudo chown -R wazuh-indexer:wazuh-indexer /mnt/data/wazuh-indexer
+sudo sed -i 's|^path.data:.*|path.data: /mnt/data/wazuh-indexer|' /etc/wazuh-indexer/opensearch.yml
+grep "^path.data" /etc/wazuh-indexer/opensearch.yml
+```
+Expect `path.data: /mnt/data/wazuh-indexer`.
 
 Confirm `opensearch.yml` reflects single-node bootstrap — the package-generated config for this version doesn't use a `discovery.type: single-node` key (a common pattern in some OpenSearch setups); instead it bootstraps by listing the node itself in `cluster.initial_master_nodes`:
 ```bash
