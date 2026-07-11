@@ -205,11 +205,11 @@ sudo chmod 400 /etc/wazuh-indexer/certs/*
 sudo chown -R wazuh-indexer:wazuh-indexer /etc/wazuh-indexer/certs
 ```
 
-Confirm `opensearch.yml` reflects single-node discovery:
+Confirm `opensearch.yml` reflects single-node bootstrap — the package-generated config for this version doesn't use a `discovery.type: single-node` key (a common pattern in some OpenSearch setups); instead it bootstraps by listing the node itself in `cluster.initial_master_nodes`:
 ```bash
-grep "discovery.type" /etc/wazuh-indexer/opensearch.yml
+grep -A2 "cluster.initial_master_nodes" /etc/wazuh-indexer/opensearch.yml
 ```
-Expect `discovery.type: single-node`.
+Expect `node.name` (a few lines above) and the single entry under `cluster.initial_master_nodes` to match — both should read `"node-1"`, matching MON01 as the only node in this deployment.
 
 Set the JVM heap to roughly half of MON01's RAM allocated to the Indexer, leaving room for Zabbix, Manager, Dashboard, and the OS itself. Append with `tee` rather than editing manually — OpenSearch's JVM options parser is strict about format and rejects any leading whitespace on a `-X...` line:
 ```bash
