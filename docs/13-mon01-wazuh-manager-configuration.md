@@ -73,15 +73,17 @@ make -j$(nproc) TARGET=server
 Run the installer from the top of the extracted source tree (not `src/`):
 ```bash
 cd ~/wazuh-manager-src
-sudo ./install
+sudo ./install.sh
 ```
 This launches an interactive wizard:
 1. Language: `en`.
+> <img width="374" height="205" alt="image" src="https://github.com/user-attachments/assets/5bfb0fc0-164f-4788-8a84-3a395b32a724" />
 2. Confirm you've read the notice → **Enter**.
 3. **1. Install Wazuh manager** (not agent).
 4. Accept the default installation prefix (`/var/ossec` in 4.x).
 5. Decline email notifications setup for this lab.
 6. Accept default install of remaining optional modules → **Enter** through prompts.
+><img width="566" height="593" alt="image" src="https://github.com/user-attachments/assets/5865efda-0d59-4268-acd9-b1eaf6c788d8" />
 7. Wait for compilation and installation to complete.
 
 Confirm it built and installed correctly:
