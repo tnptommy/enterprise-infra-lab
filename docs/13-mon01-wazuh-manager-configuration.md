@@ -48,8 +48,6 @@ sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 sudo systemctl enable --now docker
 sudo docker run hello-world
 ```
-> <img width="478" height="247" alt="image" src="https://github.com/user-attachments/assets/f901b351-5a8d-4bf3-8d1a-f9c65a02f131" />
-
 The last command confirms Docker itself works before relying on it for a much longer build later.
 
 ---
@@ -73,25 +71,21 @@ make -j$(nproc) TARGET=server
 Run the installer from the top of the extracted source tree (not `src/`):
 ```bash
 cd ~/wazuh-manager-src
-sudo ./install.sh
+sudo ./install
 ```
 This launches an interactive wizard:
 1. Language: `en`.
-> <img width="374" height="205" alt="image" src="https://github.com/user-attachments/assets/5bfb0fc0-164f-4788-8a84-3a395b32a724" />
 2. Confirm you've read the notice → **Enter**.
 3. **1. Install Wazuh manager** (not agent).
 4. Accept the default installation prefix (`/var/ossec` in 4.x).
 5. Decline email notifications setup for this lab.
 6. Accept default install of remaining optional modules → **Enter** through prompts.
-> <img width="570" height="593" alt="image" src="https://github.com/user-attachments/assets/70571e83-7756-40e4-abe0-f37c59e2b51a" />
 7. Wait for compilation and installation to complete.
 
 Confirm it built and installed correctly:
 ```bash
 sudo /var/ossec/bin/wazuh-control status
 ```
-> <img width="414" height="191" alt="image" src="https://github.com/user-attachments/assets/4b739b5d-97c1-40c4-9f42-310b7baddfa5" />
-
 (Expect it to report processes as **not running** at this point — nothing has been started yet, this just confirms the binaries exist.)
 
 ---
@@ -134,6 +128,11 @@ sudo bash wazuh-certs-tool.sh -A
 
 This follows Wazuh's official two-stage packaging pipeline: a **build stage** (compiles the core via Gradle, producing a "minimal" package with no plugins) and an **assemble stage** (bundles plugins, configuration, and service files into the final package) — the same process Wazuh's own CI uses to produce the packages normally downloaded from `packages.wazuh.com`.
 
+The assemble stage downloads plugins (like `alerting`) from Maven Central using `mvn` — install Maven now, before it's needed partway through:
+```bash
+sudo dnf install -y maven
+```
+
 ```bash
 cd ~
 git clone https://github.com/wazuh/wazuh-indexer.git
@@ -158,11 +157,24 @@ bash packaging_scripts/assemble.sh -a x64 -d rpm -r 1
 ```
 This extracts the min RPM (via `rpm2cpio`/`cpio`), installs plugins into it using the `opensearch-plugin` CLI tool, applies production configuration, and rebuilds the final RPM from `wazuh-indexer/distribution/packages/src/rpm/wazuh-indexer.rpm.spec`.
 
+> **Known issue in this tag's spec file:** `rpmbuild` may fail with `error: line 97: second %install`. This isn't a real second `%install` section — it's a comment (`# The %install section gets executed under a dash shell,`) that literally contains the substring `%install`, which some `rpmbuild` versions treat as a new section directive even inside a comment. **Patch the original template**, not just the copy `assemble.sh` extracts into `artifacts/tmp/` — otherwise the next run re-extracts the unfixed version and hits the same error again:
+> ```bash
+> sed -i 's/# The %install section/# The %%install section/' \
+>   ~/wazuh-indexer/distribution/packages/src/rpm/wazuh-indexer.rpm.spec
+> ```
+> Matching on the comment's actual text (rather than a line number) means this fix applies correctly regardless of which copy of the file you're looking at.
+
+> **If assemble.sh is re-run after a previous failed attempt**, it can fail with `plugin directory [...] already exists` — stale state left behind by the earlier partial run. Clean it up before retrying (safe to do now that the template itself is patched above, so re-extraction won't reintroduce the spec bug):
+> ```bash
+> rm -rf ~/wazuh-indexer/artifacts/tmp
+> bash packaging_scripts/assemble.sh -a x64 -d rpm -r 1
+> ```
+
 Confirm the final package exists:
 ```bash
 ls artifacts/dist/*.rpm
 ```
-Expect a file named like `wazuh-indexer-4.14.6-0.x86_64.rpm` (not `wazuh-indexer-min-...`, which is the intermediate, plugin-less package from the build stage alone).
+Expect a file named like `wazuh-indexer_4.14.6-0_x86_64_<commit-hash>.rpm` (note underscores, and a trailing git commit hash — this is `baptizer.sh`'s actual naming convention) — clearly larger and differently named than `wazuh-indexer-min_4.14.6-0_x86_64_<commit-hash>.rpm`, the intermediate, plugin-less package from the build stage alone (roughly 260 MB vs. over 800 MB once plugins are bundled in).
 
 > **This document's exact commands reflect what was confirmed by reading `packaging_scripts/README.md` directly in the checked-out `v4.14.6` tag — always prefer that file over this document or Wazuh's web documentation if they disagree**, since both had already drifted from this tag's actual script layout and flag casing (`-r` not `-R`, `packaging_scripts/` not `build-scripts/`, no `ci.sh`) by the time this was written.
 
@@ -170,13 +182,14 @@ Expect a file named like `wazuh-indexer-4.14.6-0.x86_64.rpm` (not `wazuh-indexer
 
 ## Step 5 — Install and configure Wazuh Indexer
 
-```bash
-Install whatever `.rpm` the assemble stage actually produced — confirm the exact filename first rather than assuming it matches this document's example:
+Install whatever `.rpm` the assemble stage actually produced — the filename includes a git commit hash that varies per checkout, so use a glob rather than assuming an exact name:
 ```bash
 ls ~/wazuh-indexer/artifacts/dist/*.rpm
-sudo rpm -ivh ~/wazuh-indexer/artifacts/dist/wazuh-indexer-4.14.6-0.x86_64.rpm
+sudo rpm -ivh ~/wazuh-indexer/artifacts/dist/wazuh-indexer_4.14.6-*_x86_64_*.rpm
 ```
-Adjust the filename in the install command to match whatever `ls` actually showed if it differs.
+This glob matches the full package (e.g. `wazuh-indexer_4.14.6-0_x86_64_3eb218fe481.rpm`, roughly 800+ MB) but not the `-min` intermediate (roughly 260 MB) — confirm only one file matches before running `rpm -ivh` if in doubt:
+```bash
+ls ~/wazuh-indexer/artifacts/dist/wazuh-indexer_4.14.6-*_x86_64_*.rpm
 ```
 
 Copy the generated certificates into place:
