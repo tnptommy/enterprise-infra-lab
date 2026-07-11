@@ -135,22 +135,22 @@ cd wazuh-indexer
 git checkout v4.14.6
 ```
 
-**Build stage** — this runs inside a Docker container the script provisions itself:
+**Build stage** — the scripts live in `packaging_scripts/` at this tag (not `build-scripts/`, which only exists on newer branches). Read the real instructions shipped in the source tree itself rather than relying on the web documentation, which can lag behind a specific tag:
 ```bash
-cd build-scripts
-./ci.sh -h
+cat packaging_scripts/README.md
 ```
-Review the printed usage before proceeding — flags occasionally shift between releases, and confirming the exact syntax against `-h` output here avoids guessing. Using the RPM/x64 target as an example:
-```bash
-./ci.sh -d rpm -a x64 -R 0
-```
-This produces a "min" package (no plugins yet) under `../artifacts/dist/`.
 
-**Assemble stage** — bundles the security plugin, default configuration, and service files onto the min package:
+Build using `baptizer.sh` to generate the correct package name, fed into `build.sh`:
 ```bash
-cd ..
-sudo bash build-scripts/assemble.sh -d rpm -a x64 -R 0
+bash packaging_scripts/build.sh -a x64 -d rpm -n $(bash packaging_scripts/baptizer.sh -a x64 -d rpm -m)
 ```
+This produces a "min" package (no plugins yet) under `artifacts/dist/`.
+
+**Assemble stage** — bundles the security plugin, default configuration, and service files onto the min package. Confirmed syntax, following the same `-a {arch} -d {distribution} -r {revision}` pattern documented for TAR in this tag's `packaging_scripts/README.md`:
+```bash
+bash packaging_scripts/assemble.sh -a x64 -d rpm -r 1
+```
+This extracts the min RPM (via `rpm2cpio`/`cpio`), installs plugins into it using the `opensearch-plugin` CLI tool, applies production configuration, and rebuilds the final RPM from `wazuh-indexer/distribution/packages/src/rpm/wazuh-indexer.rpm.spec`.
 
 Confirm the final package exists:
 ```bash
@@ -158,14 +158,19 @@ ls artifacts/dist/*.rpm
 ```
 Expect a file named like `wazuh-indexer-4.14.6-0.x86_64.rpm` (not `wazuh-indexer-min-...`, which is the intermediate, plugin-less package from the build stage alone).
 
-> If either script's exact flags don't match what's printed by `-h` on the version you actually checked out, that's expected — this pipeline evolves between releases. Follow the `-h` output over this document's example flags if they diverge.
+> **This document's exact commands reflect what was confirmed by reading `packaging_scripts/README.md` directly in the checked-out `v4.14.6` tag — always prefer that file over this document or Wazuh's web documentation if they disagree**, since both had already drifted from this tag's actual script layout and flag casing (`-r` not `-R`, `packaging_scripts/` not `build-scripts/`, no `ci.sh`) by the time this was written.
 
 ---
 
 ## Step 5 — Install and configure Wazuh Indexer
 
 ```bash
+Install whatever `.rpm` the assemble stage actually produced — confirm the exact filename first rather than assuming it matches this document's example:
+```bash
+ls ~/wazuh-indexer/artifacts/dist/*.rpm
 sudo rpm -ivh ~/wazuh-indexer/artifacts/dist/wazuh-indexer-4.14.6-0.x86_64.rpm
+```
+Adjust the filename in the install command to match whatever `ls` actually showed if it differs.
 ```
 
 Copy the generated certificates into place:
