@@ -9,7 +9,7 @@ No new VM or network configuration is needed here — this continues directly on
 | Wazuh Manager | 4.14.6, built from source | https://github.com/wazuh/wazuh |
 | Wazuh Indexer | 4.14.6, built from source via Wazuh's official Docker packaging pipeline | https://documentation.wazuh.com/current/development/packaging/generate-indexer-package.html |
 | Wazuh Dashboard | 4.14.6, built from source via Wazuh's official Docker packaging pipeline | https://documentation.wazuh.com/current/development/packaging/generate-dashboard-package.html |
-| Filebeat | 7.10.2, built from source (version pinned by Wazuh's own compatibility matrix — do not use a newer Filebeat) | https://github.com/elastic/beats |
+| Filebeat | 7.10.2 (version pinned by Wazuh's own compatibility matrix — do not use a newer Filebeat) | https://packages.wazuh.com/4.x/tpl/wazuh/filebeat/ |
 
 > **Why this looks different from a typical from-source guide, and different from this document's own earlier attempt at Wazuh 5.0:** an earlier version of this document attempted building Wazuh **5.0.0 (beta)** entirely from source and hit a genuine wall — 5.0 splits Indexer functionality across several repositories assembled by an internal Docker tool that wasn't consistently tagged or documented for external use at the beta stage. **Wazuh 4.14.6 doesn't have that problem** — Wazuh publishes an official, versioned, documented build pipeline for exactly this release, used to produce the very `.rpm` packages available on `packages.wazuh.com`. This document follows that official pipeline directly (Docker-based `build.sh`/`assemble.sh` for the Indexer, a parameterized Docker build for the Dashboard) rather than improvising, so what you get by the end is functionally identical to the official package — just compiled by you, from source you control, on this VM.
 
@@ -23,7 +23,7 @@ No new VM or network configuration is needed here — this continues directly on
 - [Step 4 — Build the Wazuh Indexer package](#step-4--build-the-wazuh-indexer-package)
 - [Step 5 — Install and configure Wazuh Indexer](#step-5--install-and-configure-wazuh-indexer)
 - [Step 6 — Initialize Indexer security](#step-6--initialize-indexer-security)
-- [Step 7 — Build and configure Filebeat from source](#step-7--build-and-configure-filebeat-from-source)
+- [Step 7 — Install and configure Filebeat](#step-7--install-and-configure-filebeat)
 - [Step 8 — Build the Wazuh Dashboard package](#step-8--build-the-wazuh-dashboard-package)
 - [Step 9 — Install and configure Wazuh Dashboard](#step-9--install-and-configure-wazuh-dashboard)
 - [Step 10 — Start everything in order](#step-10--start-everything-in-order)
@@ -272,59 +272,23 @@ Expect a JSON response describing the cluster (the default `admin:admin` credent
 
 ---
 
-## Step 7 — Build and configure Filebeat from source
+## Step 7 — Install and configure Filebeat
 
-Filebeat ships Wazuh Manager's alerts to the Indexer — the piece that actually needs the TLS certificates in the 4.x architecture.
+Filebeat ships Wazuh Manager's alerts to the Indexer — the piece that actually needs the TLS certificates in the 4.x architecture:
 
-> **This build needs an old Go toolchain, not whatever's newest.** Filebeat `7.10.2` was released in December 2020, and Beats pins a specific Go version per release rather than building against "whatever Go is current" — for the `7.10.x` era, that's **Go 1.14**. Installing the latest Go from Rocky Linux's repos (or any modern 1.2x release) and pointing it at this old checkout risks subtle build failures from years of Go language/stdlib changes since 2020. Install the matching old version side-by-side with any system Go, rather than replacing it:
-> ```bash
-> cd ~
-> wget https://go.dev/dl/go1.14.15.linux-amd64.tar.gz
-> sudo tar -C /usr/local -xzf go1.14.15.linux-amd64.tar.gz -o /usr/local/go1.14
-> mv /usr/local/go /usr/local/go1.14
-> export PATH=/usr/local/go1.14/bin:$PATH
-> go version
-> ```
-> Expect `go version go1.14.15 linux/amd64`. Use this exact `PATH` export in every terminal session for the rest of this step — a fresh shell won't have it by default.
-
-Beats still uses the pre-Go-Modules `GOPATH` convention for its build tooling even at this version — set that up first:
 ```bash
-mkdir -p ~/go/src/github.com/elastic
-export GOPATH=~/go
-cd ~/go/src/github.com/elastic
-git clone --branch v7.10.2 --depth 1 https://github.com/elastic/beats.git
-cd beats
-```
+sudo tee /etc/yum.repos.d/elastic.repo << 'EOF'
+[elastic-7.x]
+name=Elastic repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/7.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+EOF
 
-Install `mage`, the build tool Beats uses instead of plain `make` targets for compilation:
-```bash
-cd ~/go/src/github.com/elastic/beats
-make mage
-```
-
-Build Filebeat specifically (not the whole Beats monorepo):
-```bash
-cd filebeat
-~/go/bin/mage build
-```
-
-> If this fails with dependency-resolution errors, confirm `go version` still reports `1.14.15` in this shell (the `PATH` export from earlier doesn't persist across new terminal sessions) before troubleshooting anything else — that's the most common cause of a from-source Beats build breaking on a modern OS.
-
-Confirm the binary built:
-```bash
-./filebeat version
-```
-
-Install it manually — a from-source Beats build doesn't produce a system package the way the Wazuh Indexer/Dashboard pipelines did earlier in this document, just a binary and supporting files to place by hand:
-```bash
-sudo mkdir -p /usr/share/filebeat/bin /etc/filebeat /var/lib/filebeat /var/log/filebeat
-sudo cp filebeat /usr/share/filebeat/bin/
-sudo cp fields.yml /etc/filebeat/
-sudo cp -r module /usr/share/filebeat/ 2>/dev/null
-
-sudo groupadd --system filebeat 2>/dev/null
-sudo useradd --system -g filebeat -d /var/lib/filebeat -s /sbin/nologin filebeat 2>/dev/null
-sudo chown -R filebeat:filebeat /var/lib/filebeat /var/log/filebeat
+sudo dnf install -y filebeat-7.10.2
 ```
 
 Download Wazuh's Filebeat template and module (module version `0.5`, matching the `4.14.6` compatibility matrix — earlier 4.x releases used `0.4`, which won't have current field mappings):
@@ -333,6 +297,7 @@ sudo curl -so /etc/filebeat/filebeat.yml https://packages.wazuh.com/4.14/tpl/waz
 sudo curl -so /etc/filebeat/wazuh-template.json https://raw.githubusercontent.com/wazuh/wazuh/v4.14.6/extensions/elasticsearch/7.x/wazuh-template.json
 sudo chmod go+r /etc/filebeat/wazuh-template.json
 
+sudo mkdir -p /usr/share/filebeat/module
 sudo curl -s https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.5.tar.gz | sudo tar -xvz -C /usr/share/filebeat/module
 ```
 
@@ -353,35 +318,18 @@ sudo cp ~/wazuh-certificates/node-1.pem /etc/filebeat/certs/filebeat.pem
 sudo cp ~/wazuh-certificates/node-1-key.pem /etc/filebeat/certs/filebeat-key.pem
 ```
 
-Store the Indexer credentials in Filebeat's keystore rather than plaintext in the config — the from-source binary supports the same `keystore` subcommand as the packaged version:
+Store the Indexer credentials in Filebeat's keystore rather than plaintext in the config:
 ```bash
-sudo /usr/share/filebeat/bin/filebeat keystore create --path.data /var/lib/filebeat
-echo admin | sudo /usr/share/filebeat/bin/filebeat keystore add username --stdin --force --path.data /var/lib/filebeat
-echo admin | sudo /usr/share/filebeat/bin/filebeat keystore add password --stdin --force --path.data /var/lib/filebeat
+sudo filebeat keystore create
+echo admin | sudo filebeat keystore add username --stdin --force
+echo admin | sudo filebeat keystore add password --stdin --force
 ```
 (Change these two values once the real Indexer password is set in [Step 11](#step-11--log-in-and-change-default-passwords).)
 
-Create a systemd unit (a from-source build has no packaged one):
 ```bash
-sudo tee /etc/systemd/system/filebeat.service << 'EOF'
-[Unit]
-Description=Filebeat sends log files to Logstash or directly to Elasticsearch
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/share/filebeat/bin/filebeat -c /etc/filebeat/filebeat.yml --path.home /usr/share/filebeat --path.config /etc/filebeat --path.data /var/lib/filebeat --path.logs /var/log/filebeat
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 sudo systemctl daemon-reload
 sudo systemctl enable filebeat
 ```
-> `User=root` here (rather than the `filebeat` system user created above) because Filebeat needs read access to `/var/ossec/logs/` (Wazuh Manager's alert output) and other system paths it wasn't specifically granted permissions for — the packaged version handles this with additional `setcap`/ACL configuration during install that this manual build skips for simplicity. Tightening this down to the dedicated `filebeat` user with explicit read grants on exactly the paths it needs is a reasonable hardening exercise once the basic pipeline is confirmed working.
 
 ---
 
@@ -469,7 +417,7 @@ sudo systemctl start wazuh-dashboard
 
 Confirm Filebeat can actually reach the Indexer (a very common point of failure — TLS cert mismatches or wrong credentials surface here):
 ```bash
-sudo /usr/share/filebeat/bin/filebeat test output --path.config /etc/filebeat --path.data /var/lib/filebeat
+sudo filebeat test output
 ```
 Expect `talk to server... OK`.
 
@@ -490,7 +438,7 @@ sudo bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passw
 Copy the `admin` password immediately into [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `MON01_10.40` group, entry "Wazuh Dashboard admin".
 4. Update Filebeat's keystore with the new `admin` password:
 ```bash
-echo 'New-Password-From-Script-Output' | sudo /usr/share/filebeat/bin/filebeat keystore add password --stdin --force --path.data /var/lib/filebeat
+echo 'New-Password-From-Script-Output' | sudo filebeat keystore add password --stdin --force
 sudo systemctl restart filebeat
 ```
 5. Log out and back into the Dashboard with the new password to confirm it took effect.
@@ -561,7 +509,7 @@ sudo systemctl status wazuh-indexer wazuh-manager filebeat wazuh-dashboard
 
 2. **Filebeat successfully shipping to the Indexer:**
 ```bash
-sudo /usr/share/filebeat/bin/filebeat test output --path.config /etc/filebeat --path.data /var/lib/filebeat
+sudo filebeat test output
 ```
 
 3. **Dashboard reachable and logging in with the new password:**
