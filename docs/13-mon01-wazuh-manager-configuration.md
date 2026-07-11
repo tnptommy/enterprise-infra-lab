@@ -83,13 +83,15 @@ This launches an interactive wizard:
 4. Accept the default installation prefix (`/var/ossec` in 4.x).
 5. Decline email notifications setup for this lab.
 6. Accept default install of remaining optional modules → **Enter** through prompts.
-><img width="566" height="593" alt="image" src="https://github.com/user-attachments/assets/5865efda-0d59-4268-acd9-b1eaf6c788d8" />
+> <img width="570" height="593" alt="image" src="https://github.com/user-attachments/assets/70571e83-7756-40e4-abe0-f37c59e2b51a" />
 7. Wait for compilation and installation to complete.
 
 Confirm it built and installed correctly:
 ```bash
 sudo /var/ossec/bin/wazuh-control status
 ```
+> <img width="414" height="191" alt="image" src="https://github.com/user-attachments/assets/4b739b5d-97c1-40c4-9f42-310b7baddfa5" />
+
 (Expect it to report processes as **not running** at this point — nothing has been started yet, this just confirms the binaries exist.)
 
 ---
