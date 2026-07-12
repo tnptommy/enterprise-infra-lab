@@ -295,9 +295,9 @@ make build
 ```
 Expect this to take a while (the frontend build in particular) — normal, not a sign of a problem.
 
-Confirm both halves built:
+Confirm both halves built — the binary lands at `bin/linux/amd64/grafana` (three nested directories, not the `bin/linux-amd64/grafana` naming convention older Grafana versions used):
 ```bash
-ls bin/linux-amd64/grafana
+ls bin/linux/amd64/grafana
 ls public/build/*.js | head -3
 ```
 
@@ -312,7 +312,7 @@ exit
 
 ```bash
 sudo mkdir -p /opt/grafana
-sudo cp -r /home/builder/grafana/bin/linux-amd64/* /opt/grafana/
+sudo cp -r /home/builder/grafana/bin/linux/amd64/* /opt/grafana/
 sudo cp -r /home/builder/grafana/public /opt/grafana/
 sudo cp -r /home/builder/grafana/conf /opt/grafana/
 
