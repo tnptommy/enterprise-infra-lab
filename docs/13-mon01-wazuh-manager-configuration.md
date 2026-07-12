@@ -344,34 +344,66 @@ sudo systemctl enable filebeat
 
 ## Step 8 — Build the Wazuh Dashboard package
 
-Unlike the Indexer's `build.sh`/`assemble.sh` pair, the Dashboard's `build-packages.sh` (found by reading `dev-tools/build-packages/README.md` directly in the checked-out tree — the web documentation's single Docker command doesn't match this tag's actual layout, the same kind of drift already seen with the Indexer) **doesn't build anything itself** — it only packages three separately-built inputs:
+This is by far the most involved build in this document. Unlike the Indexer's `build.sh`/`assemble.sh` pair, the Dashboard's `build-packages.sh` (found by reading `dev-tools/build-packages/README.md` directly in the checked-out tree — the web documentation's single Docker command doesn't match this tag's actual layout, the same kind of drift already seen with the Indexer) **doesn't build anything itself** — it only packages three separately-built inputs, each requiring its own Node.js/Yarn build first:
 
 1. The Dashboard base (from the `wazuh-dashboard` repo itself)
 2. `wazuh-dashboard-plugins` (a separate repo, itself containing several sub-plugins: `main`, `wazuh-core`, `wazuh-check-updates`)
 3. `wazuh-security-dashboards-plugin` (another separate repo)
 
-Each needs its own Node.js/Yarn build before the final packaging step. Different sub-projects can require different Node versions, so use `nvm` (Node Version Manager) rather than a single system-wide Node install:
+Every step below reflects what was actually confirmed working, including several non-obvious requirements discovered only by hitting the failures directly — each is explained so you understand *why*, not just *what*.
 
+### Set up a non-root build user
+
+OpenSearch Dashboards' own build tooling refuses to run as root (`OpenSearch Dashboards should not be run as root. Use --allow-root to continue.`) — passing `--allow-root` through `yarn`'s multiple layers of wrapped subcommands isn't reliable, so create a dedicated user instead and do every `yarn`/`nvm` step as that user:
+
+```bash
+useradd -m -s /bin/bash builder
+mv ~/wazuh-dashboard /home/builder/
+chown -R builder:builder /home/builder/wazuh-dashboard
+su - builder
+```
+
+Everything from here through the end of Build 3 runs as `builder`, not root.
+
+### Install NVM
+
+Different sub-projects can require different Node versions, so use `nvm` (Node Version Manager) rather than a single system-wide Node install:
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc
 nvm --version
 ```
 
-**Build 1 — the Dashboard base:**
+### Build 1 — the Dashboard base
+
 ```bash
 cd ~/wazuh-dashboard
 nvm install $(cat .nvmrc)
 nvm use $(cat .nvmrc)
 yarn osd bootstrap
-yarn build-platform --linux --skip-os-packages --release
 ```
-This is the heaviest of the three builds — expect a substantial amount of time (an hour or more is plausible) and significant CPU/RAM usage, which is normal. Locate the resulting archive once it completes:
+If `yarn osd bootstrap` fails partway through with an SSL/TLS error (`sslv3 alert bad record mac`), it's a transient network interruption, not a real problem — delete `node_modules` and retry:
 ```bash
-find . -maxdepth 2 -iname "*.tar.gz" -newer package.json
+rm -rf node_modules
+yarn osd bootstrap
 ```
 
-**Build 2 — the security plugin:**
+```bash
+yarn build-platform --linux --skip-os-packages --release
+```
+This is the heaviest of the three builds — expect a substantial amount of time (an hour or more is plausible) and significant CPU/RAM usage, which is normal. The result lands in `target/`, not the repo root:
+```bash
+find ~/wazuh-dashboard/target -iname "*.tar.gz"
+```
+
+**`build-packages.sh` expects `--base` to be a `.zip` file *containing* this `.tar.gz`, not the `.tar.gz` itself** — this is a real, non-obvious requirement discovered by hitting `unzip: cannot find zipfile directory` otherwise. Wrap it:
+```bash
+cd ~/wazuh-dashboard/target
+zip base-wrapped.zip opensearch-dashboards-2.19.5-linux-x64.tar.gz
+```
+
+### Build 2 — the security plugin
+
 ```bash
 mkdir -p ~/wazuh-dashboard/plugins
 cd ~/wazuh-dashboard/plugins
@@ -383,7 +415,16 @@ yarn build
 find . -maxdepth 2 -iname "*.zip"
 ```
 
-**Build 3 — the dashboard plugins (main, wazuh-core, wazuh-check-updates):**
+**Same wrapping requirement as the base package** — `--security` also needs a `.zip` containing the plugin `.zip`, not the plugin zip supplied directly (supplying it directly makes `build-packages.sh` extract its *contents* into the working directory instead of installing it as a plugin, which surfaces confusingly as `bin/opensearch-dashboards-plugin install opensearch-dashboards` failing with "No valid url specified" — a symptom that looks unrelated to its actual cause). Wrap it:
+```bash
+mkdir -p ~/wazuh-dashboard/security-package
+cp ~/wazuh-dashboard/plugins/wazuh-security-dashboards-plugin/build/security-dashboards-*.zip ~/wazuh-dashboard/security-package/
+cd ~/wazuh-dashboard/security-package
+zip -j security-wrapped.zip security-dashboards-*.zip
+```
+
+### Build 3 — the dashboard plugins (main, wazuh-core, wazuh-check-updates)
+
 ```bash
 cd ~
 git clone --depth 1 -b v4.14.6 https://github.com/wazuh/wazuh-dashboard-plugins.git
@@ -391,6 +432,11 @@ cd wazuh-dashboard-plugins
 nvm install $(cat .nvmrc)
 nvm use $(cat .nvmrc)
 cp -r plugins/* ~/wazuh-dashboard/plugins/
+```
+
+**Set `OPENSEARCH_DASHBOARDS_VERSION` before building — this is required, not optional.** Each plugin's `package.json` build script reads this environment variable (`yarn plugin-helpers build --opensearch-dashboards-version=$OPENSEARCH_DASHBOARDS_VERSION`) and stamps it into the plugin's manifest. Skip this and the manifest ships with an **empty** version string, which later fails with `Plugin wazuh [4.14.6] is incompatible with OpenSearch Dashboards [2.19.5]` — a real error that looks like a version mismatch but is actually a missing build input:
+```bash
+export OPENSEARCH_DASHBOARDS_VERSION=2.19.5
 
 cd ~/wazuh-dashboard/plugins/main
 yarn
@@ -404,27 +450,51 @@ cd ~/wazuh-dashboard/plugins/wazuh-check-updates
 yarn
 yarn build
 ```
-Each `yarn build` here produces its own `.zip` under that plugin's `build/` directory:
+
+Confirm each plugin's version stamped correctly (the filename itself is a quick tell — `wazuh-2.19.5.zip` with the version present, not a truncated `wazuh-.zip`):
 ```bash
-find ~/wazuh-dashboard/plugins -maxdepth 3 -iname "*.zip"
+find ~/wazuh-dashboard/plugins/main/build ~/wazuh-dashboard/plugins/wazuh-core/build ~/wazuh-dashboard/plugins/wazuh-check-updates/build -iname "*.zip"
 ```
 
-> **This part of the process is the least precisely documented at the time of writing** — Wazuh's own guidance says only "zip the packages and move them to the packages folder" without specifying whether the three plugin zips from Build 3 need to be combined into one archive before feeding them to `build-packages.sh`'s single `--app` flag, or supplied differently. Inspect what each `yarn build` actually produced (the `find` command above) and compare against what `build-packages.sh --help` (or its source, `cat ~/wazuh-dashboard/dev-tools/build-packages/build-packages.sh`) expects for the `--app` input before proceeding — this is worth reading directly rather than guessing.
-
-**Final packaging step**, once all three inputs are confirmed:
+Combine all three into a single `app.zip` — `build-packages.sh` expects exactly one `--app` input, containing all plugin zips flattened together (no subdirectories):
 ```bash
-cd ~/wazuh-dashboard/dev-tools/build-packages/
+mkdir -p ~/wazuh-dashboard/app-package
+cp ~/wazuh-dashboard/plugins/main/build/wazuh-*.zip ~/wazuh-dashboard/app-package/
+cp ~/wazuh-dashboard/plugins/wazuh-core/build/wazuhCore-*.zip ~/wazuh-dashboard/app-package/
+cp ~/wazuh-dashboard/plugins/wazuh-check-updates/build/wazuhCheckUpdates-*.zip ~/wazuh-dashboard/app-package/
+
+cd ~/wazuh-dashboard/app-package
+zip -j app.zip *.zip
+```
+
+### Final packaging step
+
+`build-packages.sh` shells out to `docker build`/`docker run`, which needs root (or a user in the `docker` group, not set up in this guide) — switch back to root for this step:
+```bash
+exit
+```
+
+Git refuses to operate on a repository owned by a different user by default — allow it explicitly before running anything that touches the checked-out tree as root:
+```bash
+git config --global --add safe.directory /home/builder/wazuh-dashboard
+```
+
+```bash
+cd /home/builder/wazuh-dashboard/dev-tools/build-packages/
+rm -rf tmp output
+
 bash build-packages.sh \
-    --app "file://$(find ~/wazuh-dashboard/plugins -iname '*.zip' | head -1)" \
-    --base "file://$(find ~/wazuh-dashboard -maxdepth 1 -iname '*.tar.gz')" \
-    --security "file://$(find ~/wazuh-dashboard/plugins/wazuh-security-dashboards-plugin -iname '*.zip')" \
+    --app "file:///home/builder/wazuh-dashboard/app-package/app.zip" \
+    --base "file:///home/builder/wazuh-dashboard/target/base-wrapped.zip" \
+    --security "file:///home/builder/wazuh-dashboard/security-package/security-wrapped.zip" \
     --rpm --debug
 ```
-Adjust the three `file://` paths to match whatever the `find` commands above actually returned if they differ from a single unambiguous match.
+
+This installs each plugin one at a time inside a Docker container, then builds the final RPM in a second container — expect several more minutes, and don't be alarmed by `docker build`/`docker run` output interleaved with plugin installation logs.
 
 Confirm the package exists:
 ```bash
-find ~/wazuh-dashboard/dev-tools/build-packages -iname "*.rpm"
+find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 ```
 
 ---
@@ -434,7 +504,7 @@ find ~/wazuh-dashboard/dev-tools/build-packages -iname "*.rpm"
 ```bash
 Install whatever `.rpm` the previous step actually produced — confirm the exact location and filename first:
 ```bash
-find ~/wazuh-dashboard/dev-tools/build-packages -iname "*.rpm"
+find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 sudo rpm -ivh <path-from-the-find-command-above>
 ```
 ```
