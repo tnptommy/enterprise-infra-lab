@@ -237,6 +237,16 @@ grep -A2 "cluster.initial_master_nodes" /etc/wazuh-indexer/opensearch.yml
 ```
 Expect `node.name` (a few lines above) and the single entry under `cluster.initial_master_nodes` to match — both should read `"node-1"`, matching MON01 as the only node in this deployment.
 
+**Add `compatibility.override_main_response_version: true`.** This isn't optional if Filebeat (a genuine Elastic Beats client, not an OpenSearch-native tool) will ever successfully ship data to this Indexer — without it, two separate incompatibilities surface between Filebeat 7.10.2 and OpenSearch 2.19.5 (the base this Indexer build is on):
+1. Filebeat's non-OSS distribution check fails outright (`Filebeat requires the default distribution of Elasticsearch`) — addressed separately in [Step 7](#step-7--install-and-configure-filebeat) by using the OSS repository instead.
+2. Even with OSS Filebeat, its Bulk API client still includes a legacy `_type` field in request metadata (a concept Elasticsearch deprecated in 7.x and OpenSearch removed entirely in 2.0+) — OpenSearch rejects these requests outright with `illegal_argument_exception: ... unknown parameter [_type]`, silently dropping every event Filebeat tries to ship, with no index ever appearing on the Indexer side despite Filebeat's own logs showing no obvious error unless checked closely.
+
+This setting makes the Indexer report a version string that satisfies both compatibility checks:
+```bash
+echo "compatibility.override_main_response_version: true" | sudo tee -a /etc/wazuh-indexer/opensearch.yml
+grep "override_main_response_version" /etc/wazuh-indexer/opensearch.yml
+```
+
 Set the JVM heap to roughly half of MON01's RAM allocated to the Indexer, leaving room for Zabbix, Manager, Dashboard, and the OS itself. Append with `tee` rather than editing manually — OpenSearch's JVM options parser is strict about format and rejects any leading whitespace on a `-X...` line:
 ```bash
 printf '%s\n' '-Xms4g' '-Xmx4g' | sudo tee -a /etc/wazuh-indexer/jvm.options
