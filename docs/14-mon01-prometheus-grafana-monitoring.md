@@ -37,11 +37,11 @@ None of these overlap with Prometheus's, Grafana's, or node_exporter's defaults:
 ## Table of contents
 
 - [Step 1 — Install Go](#step-1--install-go)
-- [Step 2 — Build Prometheus from source](#step-2--build-prometheus-from-source)
-- [Step 3 — Configure Prometheus](#step-3--configure-prometheus)
-- [Step 4 — Create the Prometheus systemd service](#step-4--create-the-prometheus-systemd-service)
-- [Step 5 — Install node_exporter on MON01](#step-5--install-node_exporter-on-mon01)
-- [Step 6 — Install Node.js and Yarn for the Grafana frontend](#step-6--install-nodejs-and-yarn-for-the-grafana-frontend)
+- [Step 2 — Install Node.js, Yarn, and pnpm](#step-2--install-nodejs-yarn-and-pnpm)
+- [Step 3 — Build Prometheus from source](#step-3--build-prometheus-from-source)
+- [Step 4 — Configure Prometheus](#step-4--configure-prometheus)
+- [Step 5 — Create the Prometheus systemd service](#step-5--create-the-prometheus-systemd-service)
+- [Step 6 — Install node_exporter on MON01](#step-6--install-node_exporter-on-mon01)
 - [Step 7 — Build Grafana from source](#step-7--build-grafana-from-source)
 - [Step 8 — Configure Grafana](#step-8--configure-grafana)
 - [Step 9 — Create the Grafana systemd service](#step-9--create-the-grafana-systemd-service)
@@ -69,7 +69,26 @@ Expect `go version go1.26.5 linux/amd64`.
 
 ---
 
-## Step 2 — Build Prometheus from source
+## Step 2 — Install Node.js, Yarn, and pnpm
+
+Both Prometheus and Grafana bundle a JavaScript-based web UI alongside their Go backend, and `make build`/`go run build.go build` compile that frontend as part of the normal build — this needs to happen **before** Step 3, not after, since Prometheus's own `make build` fails immediately without it. The two projects use different package managers for their frontend (Prometheus: `pnpm`; Grafana: `yarn`), so install both now:
+
+```bash
+curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+sudo dnf install -y nodejs
+node --version
+```
+Expect `v22.x` or newer — Prometheus 3.13.x's web UI build specifically checks for at least `22.22.3` and refuses to proceed on an older Node, even though the version installed here otherwise looks "new enough" at a glance.
+
+```bash
+sudo npm install -g yarn pnpm
+yarn --version
+pnpm --version
+```
+
+---
+
+## Step 3 — Build Prometheus from source
 
 ```bash
 cd ~
@@ -91,7 +110,7 @@ sudo useradd --system -g prometheus -d /opt/prometheus -s /sbin/nologin promethe
 
 ---
 
-## Step 3 — Configure Prometheus
+## Step 4 — Configure Prometheus
 
 Point Prometheus's own data directory at the data disk mounted in [`12`'s Step 5](./12-mon01-zabbix-server-configuration.md#step-5--partition-and-mount-the-data-disk) — time-series data grows continuously, exactly the kind of thing that disk was set aside for:
 ```bash
@@ -124,7 +143,7 @@ The `node_exporter` job above only has MON01 itself as a target for now — [`17
 
 ---
 
-## Step 4 — Create the Prometheus systemd service
+## Step 5 — Create the Prometheus systemd service
 
 ```bash
 sudo tee /etc/systemd/system/prometheus.service << 'EOF'
@@ -161,7 +180,7 @@ Expect `Prometheus Server is Healthy.`
 
 ---
 
-## Step 5 — Install node_exporter on MON01
+## Step 6 — Install node_exporter on MON01
 
 node_exporter is a small, self-contained Go binary (no source build needed — the project ships pre-built static binaries, and there's nothing meaningfully "built from source" about a single static Go binary with no configuration compiled in):
 
@@ -197,19 +216,6 @@ Verify Prometheus is actually scraping it — check the target's `up` status rat
 curl -s 'http://localhost:9090/api/v1/query?query=up{job="node_exporter"}' | grep -o '"value":\[[^]]*\]'
 ```
 Expect the value `1` (not `0`) — confirms Prometheus successfully scraped node_exporter, not just that both processes happen to be alive independently.
-
----
-
-## Step 6 — Install Node.js and Yarn for the Grafana frontend
-
-```bash
-curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-sudo dnf install -y nodejs
-node --version
-
-sudo npm install -g yarn
-```
-(Same NodeSource approach as [`13`'s Dashboard build](./13-mon01-wazuh-manager-configuration.md#build-1--the-dashboard-base) — Rocky Linux 10 dropped `dnf module` streams entirely, so this is the reliable way to pin a specific Node major version.)
 
 ---
 
@@ -264,7 +270,7 @@ sudo groupadd --system grafana
 sudo useradd --system -g grafana -d /opt/grafana -s /sbin/nologin grafana
 ```
 
-Point Grafana's data directory at the data disk, same reasoning as Prometheus in [Step 3](#step-3--configure-prometheus):
+Point Grafana's data directory at the data disk, same reasoning as Prometheus in [Step 4](#step-4--configure-prometheus):
 ```bash
 sudo mkdir -p /mnt/data/grafana
 sudo chown grafana:grafana /mnt/data/grafana
@@ -360,7 +366,7 @@ sudo firewall-cmd --permanent --add-port=9443/tcp
 sudo firewall-cmd --permanent --add-port=9090/tcp
 sudo firewall-cmd --reload
 ```
-`9100` (node_exporter) is intentionally **not** opened here — it only needs to be reachable from Prometheus itself on the same host (`localhost:9100` in [Step 3](#step-3--configure-prometheus)'s scrape config), not from the network at large. This changes once [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) deploys node_exporter to *other* VMs, where Prometheus on MON01 needs to reach it remotely — that firewall rule belongs in that later document, on each of those VMs, not here.
+`9100` (node_exporter) is intentionally **not** opened here — it only needs to be reachable from Prometheus itself on the same host (`localhost:9100` in [Step 4](#step-4--configure-prometheus)'s scrape config), not from the network at large. This changes once [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) deploys node_exporter to *other* VMs, where Prometheus on MON01 needs to reach it remotely — that firewall rule belongs in that later document, on each of those VMs, not here.
 
 ---
 
@@ -387,7 +393,7 @@ nslookup grafana.corp-lab.com.vn
 sudo systemctl status prometheus grafana node_exporter
 ```
 
-2. **Prometheus is healthy and scraping successfully** (repeat the checks from [Step 4](#step-4--create-the-prometheus-systemd-service) and [Step 5](#step-5--install-node_exporter-on-mon01)).
+2. **Prometheus is healthy and scraping successfully** (repeat the checks from [Step 5](#step-5--create-the-prometheus-systemd-service) and [Step 6](#step-6--install-node_exporter-on-mon01)).
 
 3. **Grafana is reachable and the Prometheus data source works** (repeat the check from [Step 10](#step-10--add-prometheus-as-a-grafana-data-source)).
 
