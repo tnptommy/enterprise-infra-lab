@@ -5,7 +5,7 @@ This document is different in character from every build document before it — 
 1. [`08-web01-suricata-nids.md`](./08-web01-suricata-nids.md) and [`13`](./13-mon01-wazuh-manager-configuration.md#step-13--suricata-integration-forward-pointer) — WEB01's Suricata alerts reaching Wazuh Manager via a Wazuh Agent.
 2. [`15`](./15-log01-elasticsearch-logstash-kibana.md#step-14--configure-logstash) — WEB01's Suricata alerts also reaching LOG01's Logstash pipeline via Filebeat.
 
-**Zabbix Agent 2 is built from source** on the Linux VMs — same `8.0.0beta2` tarball as MON01's Zabbix Server in [`12`](./12-mon01-zabbix-server-configuration.md), keeping the agent-to-server protocol version matched, consistent with this lab's general preference for building things from source where practical. Wazuh Agent and the Prometheus exporters, by contrast, are installed via official packages/binaries — Wazuh Agent's source build shares the same multi-repo complexity already worked through once for the Manager/Indexer in [`13`](./13-mon01-wazuh-manager-configuration.md), with little additional value in repeating that effort for a comparatively thin agent; the exporters are simple, self-contained static Go binaries with no meaningful "build" step to learn from.
+**Zabbix Agent 2 is built from source** on both Linux and Windows VMs — same `8.0.0beta2` tarball as MON01's Zabbix Server in [`12`](./12-mon01-zabbix-server-configuration.md), keeping the agent-to-server protocol version matched across every host, consistent with this lab's general preference for building things from source where practical. The Windows build follows [Zabbix's own official documentation](https://www.zabbix.com/documentation/8.0/en/manual/installation/install/win_agent2) closely, since it's a genuinely different toolchain (MSYS2/MinGW/vcpkg) from the `./configure && make` pattern used everywhere else in this lab. Wazuh Agent and the Prometheus exporters, by contrast, are installed via official packages/binaries — Wazuh Agent's source build shares the same multi-repo complexity already worked through once for the Manager/Indexer in [`13`](./13-mon01-wazuh-manager-configuration.md), with little additional value in repeating that effort for a comparatively thin agent; the exporters are simple, self-contained static Go binaries with no meaningful "build" step to learn from.
 
 ## VMs covered
 
@@ -25,7 +25,7 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 ## Table of contents
 
 - [Step 1 — Zabbix Agent 2 from source on Linux VMs](#step-1--zabbix-agent-2-from-source-on-linux-vms)
-- [Step 2 — Zabbix Agent 2 on Windows VMs](#step-2--zabbix-agent-2-on-windows-vms)
+- [Step 2 — Zabbix Agent 2 from source on Windows VMs](#step-2--zabbix-agent-2-from-source-on-windows-vms)
 - [Step 3 — Confirm Zabbix host groups populated correctly](#step-3--confirm-zabbix-host-groups-populated-correctly)
 - [Step 4 — Wazuh Agent on Linux VMs](#step-4--wazuh-agent-on-linux-vms)
 - [Step 5 — Wazuh Agent on Windows VMs](#step-5--wazuh-agent-on-windows-vms)
@@ -120,20 +120,87 @@ rm -rf ~/zabbix-8.0.0 ~/zabbix-8.0.0beta2.tar.gz
 
 ---
 
-## Step 2 — Zabbix Agent 2 on Windows VMs
+## Step 2 — Zabbix Agent 2 from source on Windows VMs
+
+Same source, same reasoning as [Step 1](#step-1--zabbix-agent-2-from-source-on-linux-vms) — building on Windows is a genuinely different process from the Linux `./configure && make` pattern used everywhere else in this lab, since Windows has no equivalent toolchain by default. This follows Zabbix's own official documentation for [building Agent 2 on Windows](https://www.zabbix.com/documentation/8.0/en/manual/installation/install/win_agent2), using its **vcpkg** method — the simpler of the two official approaches, since it manages the OpenSSL/PCRE2 dependency builds automatically rather than requiring each to be manually compiled from source first.
 
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
-1. Download the Windows agent MSI from `https://cdn.zabbix.com/zabbix/binaries/stable/8.0/8.0.0/zabbix_agent2-8.0.0-windows-amd64-openssl.msi` (adjust the version path if a newer 8.0.x patch exists by the time you're reading this — check `https://cdn.zabbix.com/zabbix/binaries/stable/8.0/` directly rather than assuming this exact patch number stays current).
-2. Run the installer:
-```powershell
-msiexec /i zabbix_agent2-8.0.0-windows-amd64-openssl.msi /qn SERVER=192.168.10.40 SERVERACTIVE=192.168.10.40 HOSTNAME=%COMPUTERNAME%
+1. Install **Build Tools for Visual Studio 2022** (select the **Desktop development with C++** workload during installation — this includes the `vcpkg` package manager).
+2. Install **Go** from [go.dev/dl](https://go.dev/dl/) (MSI installer), setting the install folder to `C:\Zabbix\Go`.
+3. Download a MinGW distribution using the Microsoft Visual C runtime (e.g. `x86_64-15.1.0-release-win32-seh-msvcrt-rt_v12-rev0.7z` for 64-bit) from [the mingw-builds-binaries releases](https://github.com/niXman/mingw-builds-binaries/releases), and extract it to `C:\Zabbix\mingw64`.
+
+Initialize `vcpkg` and install the C library dependencies (Command Prompt, run as Administrator):
 ```
-3. Open the firewall:
+cd C:\Zabbix
+set PATH=%PATH%;"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\vcpkg"
+
+vcpkg new --application
+vcpkg add port pcre2
+vcpkg add port libiconv
+vcpkg add port openssl
+
+set PATH=C:\Zabbix\mingw64\bin;%PATH%
+vcpkg install --triplet x64-mingw-static --x-install-root=x64
+```
+
+Download the same source tarball used for the Linux agent build in [Step 1](#step-1--zabbix-agent-2-from-source-on-linux-vms) — matching version across every agent in this lab, not just the Linux ones:
+```
+:: Extract zabbix-8.0.0beta2.tar.gz (from https://cdn.zabbix.com/zabbix/sources/development/8.0/zabbix-8.0.0beta2.tar.gz)
+:: to C:\Zabbix\zabbix-8.0.0 — same renamed-directory convention as Step 1, for consistency
+```
+
+Navigate to `C:\Zabbix\zabbix-8.0.0\build\mingw` and create `build.bat`:
+```
+:: Add MinGW and Go to PATH for this session:
+set PATH=C:\Zabbix\mingw64\bin;%PATH%
+set PATH=C:\Zabbix\Go\bin;%PATH%
+
+:: vcpkg installation path:
+set vcpkg="C:\Zabbix\x64\x64-mingw-static"
+
+:: Linker flag needed for the Crypt32 library:
+SET CGO_LDFLAGS="-lCrypt32"
+
+mingw32-make GOFLAGS="-buildvcs=false" ARCH=AMD64 ^
+    PCRE2="%vcpkg%" ^
+    OPENSSL="%vcpkg%" ^
+    all
+```
+
+Compile:
+```
+build.bat
+```
+The binary lands at `C:\Zabbix\zabbix-8.0.0\bin\win64\zabbix_agent2.exe`, with default config templates at `C:\Zabbix\zabbix-8.0.0\src\go\conf`.
+
+Deploy to a dedicated runtime folder and configure it to point at MON01:
+```
+mkdir C:\Zabbix\agent2
+copy C:\Zabbix\zabbix-8.0.0\bin\win64\zabbix_agent2.exe C:\Zabbix\agent2\
+copy C:\Zabbix\zabbix-8.0.0\src\go\conf\zabbix_agent2.win.conf C:\Zabbix\agent2\
+xcopy /E /I C:\Zabbix\zabbix-8.0.0\src\go\conf\zabbix_agent2.d C:\Zabbix\agent2\zabbix_agent2.d\
+```
+
+Edit `C:\Zabbix\agent2\zabbix_agent2.win.conf`:
+```ini
+Server=192.168.10.40
+ServerActive=192.168.10.40
+Hostname=<WINAPP01, DC01, or CLIENT01 — whichever this VM actually is>
+```
+
+Register it as a Windows service (a from-source build has no installer to do this automatically, unlike the MSI package):
+```powershell
+C:\Zabbix\agent2\zabbix_agent2.exe --config C:\Zabbix\agent2\zabbix_agent2.win.conf --install
+Start-Service "Zabbix Agent 2"
+```
+
+Open the firewall:
 ```powershell
 New-NetFirewallRule -DisplayName "Zabbix Agent 2" -Direction Inbound -Protocol TCP -LocalPort 10050 -Action Allow
 ```
-4. Confirm the service is running:
+
+Confirm the service is running:
 ```powershell
 Get-Service "Zabbix Agent 2"
 ```
