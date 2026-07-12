@@ -48,7 +48,8 @@ None of these overlap with Prometheus's, Grafana's, or node_exporter's defaults:
 - [Step 10 — Add Prometheus as a Grafana data source](#step-10--add-prometheus-as-a-grafana-data-source)
 - [Step 11 — Firewall](#step-11--firewall)
 - [Step 12 — DNS](#step-12--dns)
-- [Step 13 — Final verification checklist](#step-13--final-verification-checklist)
+- [Step 13 — Logrotate for Grafana](#step-13--logrotate-for-grafana)
+- [Step 14 — Final verification checklist](#step-14--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -360,7 +361,7 @@ sudo mkdir -p /var/log/grafana
 sudo chown -R grafana:grafana /etc/grafana /var/log/grafana /mnt/data/grafana /opt/grafana/certs
 sudo chmod 400 /opt/grafana/certs/grafana.key
 ```
-The default `admin`/`admin` credentials are changed in [Step 13](#step-13--final-verification-checklist) — Grafana forces a password change on first login by default, so this isn't a lingering security gap the way an unchanged Zabbix/Wazuh default password would be.
+The default `admin`/`admin` credentials are changed in [Step 14](#step-14--final-verification-checklist) — Grafana forces a password change on first login by default, so this isn't a lingering security gap the way an unchanged Zabbix/Wazuh default password would be.
 
 ---
 
@@ -401,7 +402,7 @@ Expect a JSON response with `"database": "ok"`.
 
 ## Step 10 — Add Prometheus as a Grafana data source
 
-1. Browse to `https://192.168.10.40:9443` (accept the self-signed certificate warning — see [Step 11](#step-11--firewall) for the firewall step that makes this reachable, and [Step 13](#step-13--final-verification-checklist) for locking down the default credentials).
+1. Browse to `https://192.168.10.40:9443` (accept the self-signed certificate warning — see [Step 11](#step-11--firewall) for the firewall step that makes this reachable, and [Step 14](#step-14--final-verification-checklist) for locking down the default credentials).
 2. Log in with `admin`/`admin`, set a new password when prompted.
 3. **Connections → Data sources → Add data source → Prometheus**.
 4. **Prometheus server URL**: `http://localhost:9090`.
@@ -436,11 +437,42 @@ nslookup grafana.corp-lab.com.vn
 
 ---
 
-## Step 13 — Final verification checklist
+## Step 13 — Logrotate for Grafana
 
-1. **All three services running:**
+Prometheus logs through `journald` (visible via `systemctl status`/`journalctl -u prometheus`), which already has its own built-in rotation and size limits via `journald.conf` — nothing extra needed there. Grafana, however, writes its own log file directly to disk (`/var/log/grafana/grafana.log`) with no rotation of its own, which grows unbounded otherwise — exactly the kind of slow, easy-to-miss disk consumer that's caused real problems more than once while building this VM.
+
+```bash
+sudo tee /etc/logrotate.d/grafana << 'EOF'
+/var/log/grafana/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 grafana grafana
+    sharedscripts
+    postrotate
+        systemctl reload grafana >/dev/null 2>&1 || true
+    endscript
+}
+EOF
+```
+
+Verify the rule is syntactically valid without waiting for the next scheduled run:
+```bash
+sudo logrotate -d /etc/logrotate.d/grafana
+```
+(`-d` is a dry run — it prints what logrotate *would* do without actually rotating anything yet.)
+
+---
+
+## Step 14 — Final verification checklist
+
+1. **All three services running, and enabled to start on boot** — `systemctl enable --now` (used throughout this document) handles both in one command, but worth confirming both conditions explicitly rather than just that the process happens to be running right now:
 ```bash
 sudo systemctl status prometheus grafana node_exporter
+sudo systemctl is-enabled prometheus grafana node_exporter
 ```
 
 2. **Prometheus is healthy and scraping successfully** (repeat the checks from [Step 5](#step-5--create-the-prometheus-systemd-service) and [Step 6](#step-6--install-node_exporter-on-mon01)).
