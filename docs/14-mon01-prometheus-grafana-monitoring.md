@@ -80,6 +80,18 @@ node --version
 ```
 Expect `v26.x` — well past Prometheus 3.13.x's stated minimum of `22.22.3`, so no version-check surprises here.
 
+> **If this VM already has `nvm` installed** (from building the Wazuh Dashboard in [`13`](./13-mon01-wazuh-manager-configuration.md#step-2--install-nvm)), `node --version` may still report an old `nvm`-managed version (e.g. `v18.19.0`) instead of the one just installed — `nvm` prepends its own Node to `PATH` ahead of the system one, silently shadowing it. Confirm which binary is actually first in `PATH`:
+> ```bash
+> which node
+> /usr/bin/node --version
+> ```
+> If `which node` points into `~/.nvm/...` rather than `/usr/bin/node`, the NodeSource install did work correctly — only the shell's `PATH` resolution is misleading. Use the NodeSource system version explicitly for the rest of this build, rather than fighting `nvm`'s `PATH` ordering:
+> ```bash
+> export PATH=/usr/bin:$PATH
+> hash -r
+> node --version
+> ```
+
 ```bash
 sudo npm install -g yarn pnpm
 yarn --version
