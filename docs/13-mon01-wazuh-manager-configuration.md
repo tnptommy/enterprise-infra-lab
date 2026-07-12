@@ -496,18 +496,17 @@ Confirm the package exists:
 ```bash
 find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 ```
+> <img width="652" height="26" alt="image" src="https://github.com/user-attachments/assets/1c3d099c-e7fd-4669-be2f-4e86c7a1f1cf" />
 
 ---
 
 ## Step 9 — Install and configure Wazuh Dashboard
-
-```bash
 Install whatever `.rpm` the previous step actually produced — confirm the exact location and filename first:
 ```bash
 find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 sudo rpm -ivh <path-from-the-find-command-above>
 ```
-```
+
 
 Copy certificates:
 ```bash
