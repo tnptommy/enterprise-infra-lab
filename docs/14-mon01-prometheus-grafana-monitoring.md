@@ -245,6 +245,10 @@ Same non-root requirement as the Wazuh Dashboard build in [`13`](./13-mon01-wazu
 ```bash
 id builder 2>/dev/null || useradd -m -s /bin/bash builder
 chown -R builder:builder ~/prometheus 2>/dev/null
+
+sudo mkdir -p /mnt/data/go-builder
+sudo chown builder:builder /mnt/data/go-builder
+
 su - builder
 ```
 
@@ -255,9 +259,8 @@ cd grafana
 export PATH=/usr/local/go/bin:$PATH
 ```
 
-`go env -w` from [Step 1](#step-1--install-go) only applied to whichever user ran it there — since that's a per-user config file (`$HOME/.config/go/env`), redo it now for `builder` specifically, or Grafana's dependency download repeats the exact disk-filling problem [Step 1](#step-1--install-go) warned about, just under a different `$HOME`:
+`go env -w` from [Step 1](#step-1--install-go) only applied to whichever user ran it there — since that's a per-user config file (`$HOME/.config/go/env`), redo it now for `builder` specifically, or Grafana's dependency download repeats the exact disk-filling problem [Step 1](#step-1--install-go) warned about, just under a different `$HOME`. The directory itself was already created (with `builder` ownership) as root above — `builder` doesn't have write access to `/mnt/data` by default, only to what's explicitly handed to it:
 ```bash
-mkdir -p /mnt/data/go-builder
 go env -w GOPATH=/mnt/data/go-builder
 go env -w GOMODCACHE=/mnt/data/go-builder/pkg/mod
 go env -w GOCACHE=/mnt/data/go-builder/build-cache
