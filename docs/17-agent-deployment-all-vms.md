@@ -31,10 +31,11 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 - [Step 5 — Wazuh Agent on Windows VMs](#step-5--wazuh-agent-on-windows-vms)
 - [Step 6 — Complete the Suricata-to-Wazuh integration](#step-6--complete-the-suricata-to-wazuh-integration)
 - [Step 7 — Complete the Suricata-to-Logstash integration](#step-7--complete-the-suricata-to-logstash-integration)
-- [Step 8 — node_exporter on Linux VMs](#step-8--node_exporter-on-linux-vms)
-- [Step 9 — windows_exporter on Windows VMs](#step-9--windows_exporter-on-windows-vms)
-- [Step 10 — Update Prometheus scrape targets](#step-10--update-prometheus-scrape-targets)
-- [Step 11 — Final verification checklist](#step-11--final-verification-checklist)
+- [Step 8 — Winlogbeat on Windows VMs](#step-8--winlogbeat-on-windows-vms)
+- [Step 9 — node_exporter on Linux VMs](#step-9--node_exporter-on-linux-vms)
+- [Step 10 — windows_exporter on Windows VMs](#step-10--windows_exporter-on-windows-vms)
+- [Step 11 — Update Prometheus scrape targets](#step-11--update-prometheus-scrape-targets)
+- [Step 12 — Final verification checklist](#step-12--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -322,6 +323,7 @@ filebeat.inputs:
       - /var/log/suricata/eve.json
     json.keys_under_root: true
     json.add_error_key: true
+    tags: ["suricata"]
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
@@ -338,7 +340,52 @@ Expect a non-zero count once Suricata has logged any traffic.
 
 ---
 
-## Step 8 — node_exporter on Linux VMs
+## Step 8 — Winlogbeat on Windows VMs
+
+Windows Event Log data (from WINAPP01, DC01, and CLIENT01) ships to the same Logstash pipeline on LOG01 as WEB01's Suricata data in [Step 7](#step-7--complete-the-suricata-to-logstash-integration) — same port, same Beats input, routed to a separate `winlogbeat-*` index by the `tags`-based conditional already built into that pipeline in [`15`'s Step 14](./15-log01-elasticsearch-logstash-kibana.md#step-14--configure-logstash).
+
+**Use Winlogbeat 9.4.3, not the 7.10.2 pinned for WEB01's Filebeat.** That older version was specifically required to work around a Bulk API incompatibility between Filebeat and OpenSearch/Wazuh Indexer (documented in [`13`'s Step 5](./13-mon01-wazuh-manager-configuration.md#step-5--install-and-configure-wazuh-indexer)) — a problem that doesn't exist here, since this pipeline ships to genuine Elasticsearch on LOG01, not OpenSearch. Elastic's own compatibility guidance is to match Beats to the Elasticsearch/Logstash version in use, so `9.4.3` is the correct choice for this integration specifically.
+
+Run on **WINAPP01**, **DC01**, and **CLIENT01**:
+
+1. Download Winlogbeat 9.4.3 from `https://artifacts.elastic.co/downloads/beats/winlogbeat/winlogbeat-9.4.3-windows-x86_64.zip`.
+2. Extract to `C:\Program Files\Winlogbeat`.
+3. Configure:
+```powershell
+notepad "C:\Program Files\Winlogbeat\winlogbeat.yml"
+```
+```yaml
+winlogbeat.event_logs:
+  - name: Application
+    tags: ["winlogbeat"]
+  - name: System
+    tags: ["winlogbeat"]
+  - name: Security
+    tags: ["winlogbeat"]
+
+output.logstash:
+  hosts: ["192.168.10.50:5044"]
+```
+4. Install as a service and start:
+```powershell
+cd "C:\Program Files\Winlogbeat"
+.\install-service-winlogbeat.ps1
+Start-Service winlogbeat
+```
+5. Open the firewall for outbound traffic to LOG01 (most Windows firewall profiles allow outbound by default — this rule makes the intent explicit rather than relying on that default):
+```powershell
+New-NetFirewallRule -DisplayName "Winlogbeat to LOG01" -Direction Outbound -Protocol TCP -RemotePort 5044 -RemoteAddress 192.168.10.50 -Action Allow
+```
+
+Verify data is flowing — check on **LOG01**:
+```bash
+curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/winlogbeat-*/_count?pretty"
+```
+Expect a non-zero count, growing over time as Windows Event Log entries accumulate on each of the three VMs.
+
+---
+
+## Step 9 — node_exporter on Linux VMs
 
 Run on **WEB01**, **LOG01**, and **LOG02** — same binary, same systemd unit pattern as [`14`'s Step 5](./14-mon01-prometheus-grafana-monitoring.md#step-5--install-node_exporter-on-mon01):
 
@@ -378,7 +425,7 @@ sudo firewall-cmd --reload
 
 ---
 
-## Step 9 — windows_exporter on Windows VMs
+## Step 10 — windows_exporter on Windows VMs
 
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
@@ -399,13 +446,13 @@ New-NetFirewallRule -DisplayName "windows_exporter (MON01 only)" -Direction Inbo
 
 ---
 
-## Step 10 — Update Prometheus scrape targets
+## Step 11 — Update Prometheus scrape targets
 
 On **MON01**:
 ```bash
 sudo vi /etc/prometheus/prometheus.yml
 ```
-Extend the `node_exporter` job (created in [`14`'s Step 3](./14-mon01-prometheus-grafana-monitoring.md#step-3--configure-prometheus) with only MON01 itself as a target) to include every VM from [Step 8](#step-8--node_exporter-on-linux-vms), and add a new job for the Windows VMs from [Step 9](#step-9--windows_exporter-on-windows-vms):
+Extend the `node_exporter` job (created in [`14`'s Step 3](./14-mon01-prometheus-grafana-monitoring.md#step-3--configure-prometheus) with only MON01 itself as a target) to include every VM from [Step 9](#step-9--node_exporter-on-linux-vms), and add a new job for the Windows VMs from [Step 10](#step-10--windows_exporter-on-windows-vms):
 ```yaml
   - job_name: 'node_exporter'
     static_configs:
@@ -447,7 +494,7 @@ curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A2 '
 
 ---
 
-## Step 11 — Final verification checklist
+## Step 12 — Final verification checklist
 
 1. **Every VM shows a healthy Zabbix Agent 2** (repeat the check from [Step 3](#step-3--confirm-zabbix-host-groups-populated-correctly)).
 
@@ -462,9 +509,11 @@ Expect all six agents listed as `Active`.
 
 4. **Suricata-to-Logstash integration produces indexed documents** (repeat the check from [Step 7](#step-7--complete-the-suricata-to-logstash-integration)).
 
-5. **Every Prometheus target is healthy** (repeat the check from [Step 10](#step-10--update-prometheus-scrape-targets)).
+5. **Winlogbeat-to-Logstash integration produces indexed documents** (repeat the check from [Step 8](#step-8--winlogbeat-on-windows-vms)).
 
-6. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
+6. **Every Prometheus target is healthy** (repeat the check from [Step 11](#step-11--update-prometheus-scrape-targets)).
+
+7. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
 ```bash
 # On WEB01
 sudo firewall-cmd --list-rich-rules
