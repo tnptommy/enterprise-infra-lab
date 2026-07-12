@@ -85,9 +85,9 @@ Expect `v26.x` — well past Prometheus 3.13.x's stated minimum of `22.22.3`, so
 > which node
 > /usr/bin/node --version
 > ```
-> If `which node` points into `~/.nvm/...` rather than `/usr/bin/node`, the NodeSource install did work correctly — only the shell's `PATH` resolution is misleading. Use the NodeSource system version explicitly for the rest of this build, rather than fighting `nvm`'s `PATH` ordering:
+> If `which node` points into `~/.nvm/...` rather than `/usr/bin/node`, the NodeSource install did work correctly — only the shell's `PATH` resolution is misleading. `nvm`'s own `deactivate` command cleanly removes its entry from `PATH` (confirmed reliable — manually editing `PATH` by hand is more error-prone than this built-in command):
 > ```bash
-> export PATH=/usr/bin:$PATH
+> nvm deactivate
 > hash -r
 > node --version
 > ```
@@ -110,11 +110,10 @@ make build
 ```
 This compiles both `prometheus` (the server) and `promtool` (its config-validation/admin CLI) — expect several minutes, considerably lighter than the Wazuh Dashboard build in [`13`](./13-mon01-wazuh-manager-configuration.md#step-8--build-the-wazuh-dashboard-package).
 
-Install the binaries and the web UI's static assets:
+Install the binary — as of Prometheus 3.x, the web UI is embedded directly into the `prometheus` binary itself (built by `make build` in the step above); the old `consoles`/`console_libraries` directories from pre-3.x versions no longer exist in the repo, so there's nothing separate to copy for them:
 ```bash
 sudo mkdir -p /opt/prometheus
 sudo cp prometheus promtool /opt/prometheus/
-sudo cp -r consoles console_libraries /opt/prometheus/
 
 sudo groupadd --system prometheus
 sudo useradd --system -g prometheus -d /opt/prometheus -s /sbin/nologin prometheus
@@ -170,8 +169,6 @@ Type=simple
 ExecStart=/opt/prometheus/prometheus \
   --config.file=/etc/prometheus/prometheus.yml \
   --storage.tsdb.path=/mnt/data/prometheus \
-  --web.console.templates=/opt/prometheus/consoles \
-  --web.console.libraries=/opt/prometheus/console_libraries \
   --web.listen-address=0.0.0.0:9090
 Restart=on-failure
 
