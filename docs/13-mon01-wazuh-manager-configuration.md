@@ -509,13 +509,27 @@ Confirm the package exists:
 find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 ```
 
+**Clean up now, before moving on.** This build is the single heaviest disk consumer in this entire document — the `wazuh-dashboard` and `wazuh-dashboard-plugins` source trees (`node_modules` included) run to roughly **8 GB**, and the two Docker images built along the way (`dashboard-base-builder`, `dashboard-rpm-builder`) add another **~3 GB** of layer cache. Left in place, this is what pushes a 60 GB OS disk uncomfortably high — worth clearing immediately while the RPM you actually need is already safely built:
+```bash
+mkdir -p /mnt/data/backups
+cp /home/builder/wazuh-dashboard/dev-tools/build-packages/output/*.rpm /mnt/data/backups/
+
+rm -rf /home/builder/wazuh-dashboard
+rm -rf /home/builder/wazuh-dashboard-plugins
+
+sudo docker system prune -a -f
+
+df -h /
+```
+The RPM itself is backed up to the data disk mounted in [`12`'s Step 5](./12-mon01-zabbix-server-configuration.md#step-5--partition-and-mount-the-data-disk) first, so nothing is lost — only the multi-gigabyte build scaffolding (source, `node_modules`, Docker layers) that has no further use once the package exists is removed.
+
 ---
 
 ## Step 9 — Install and configure Wazuh Dashboard
 
-Install whatever `.rpm` the previous step actually produced — confirm the exact location and filename first:
+Install the `.rpm` backed up to the data disk in the cleanup step above (the original location inside `~/wazuh-dashboard` no longer exists — that's exactly what was just removed):
 ```bash
-find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
+find /mnt/data/backups -iname "wazuh-dashboard*.rpm"
 sudo rpm -ivh <path-from-the-find-command-above>
 ```
 
