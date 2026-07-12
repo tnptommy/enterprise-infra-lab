@@ -34,7 +34,7 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 - [Step 16 — Build Apache and PHP from source, deploy the frontend](#step-16--build-apache-and-php-from-source-deploy-the-frontend)
 - [Step 17 — SELinux and firewall](#step-17--selinux-and-firewall)
 - [Step 18 — Start services and complete the frontend wizard](#step-18--start-services-and-complete-the-frontend-wizard)
-- [Step 19 — Enable HTTPS](#step-19--enable-https)
+- [Step 19 — Enable HTTPS-only access](#step-19--enable-https-only-access)
 - [Step 20 — Change the default Admin password](#step-20--change-the-default-admin-password)
 - [Step 21 — Add MON01 as the first monitored host](#step-21--add-mon01-as-the-first-monitored-host)
 - [Step 22 — Create triggers of different types](#step-22--create-triggers-of-different-types)
@@ -653,9 +653,9 @@ You'll land on the Zabbix login page.
 
 ---
 
-## Step 19 — Enable HTTPS
+## Step 19 — Enable HTTPS-only access
 
-**Only needed once Wazuh joins this VM in [`13`](./13-mon01-wazuh-manager-configuration.md) — skip this step if that hasn't happened yet.** Wazuh Dashboard listens on port 443 by default, and two separate services can't both bind port 443 on the same IP without a reverse proxy distinguishing them by hostname (SNI) — which this lab doesn't set up. Rather than fight over the standard HTTPS port, give Zabbix its own HTTPS port instead.
+**Only needed once Wazuh joins this VM in [`13`](./13-mon01-wazuh-manager-configuration.md) — skip this step if that hasn't happened yet.** Wazuh Dashboard listens on port 443 by default, and two separate services can't both bind port 443 on the same IP without a reverse proxy distinguishing them by hostname (SNI) — which this lab doesn't set up. Rather than fight over the standard HTTPS port, give Zabbix its own HTTPS port instead — and since there's no good reason to leave a security-relevant dashboard reachable over unencrypted HTTP anyway, this drops the plain-HTTP listener entirely rather than running both side by side.
 
 Generate a self-signed certificate:
 ```bash
@@ -676,7 +676,7 @@ If that line starts with `#`, uncomment it:
 sudo sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/' /opt/apache/conf/httpd.conf
 ```
 
-Add an SSL vhost on port 8443, alongside the existing plain-HTTP vhost on port 80 (both stay active — HTTP isn't being removed, just supplemented):
+Add an SSL vhost on port 8443:
 ```bash
 sudo tee -a /opt/apache/conf/httpd.conf << 'EOF'
 Listen 8443
@@ -694,24 +694,35 @@ Listen 8443
 EOF
 ```
 
+Disable the plain-HTTP listener from [Step 18](#step-18--start-services-and-complete-the-frontend-wizard) — comment out its `Listen` directive rather than deleting it, so it's easy to find and re-enable later if there's ever a reason to:
+```bash
+grep -n "^Listen 80$" /opt/apache/conf/httpd.conf
+```
+Comment out whatever line number that returned (adjust the line number below to match):
+```bash
+sudo sed -i '52s/^Listen 80$/#Listen 80/' /opt/apache/conf/httpd.conf
+```
+
 Test the config before restarting — catches syntax mistakes without taking the frontend down if something's wrong:
 ```bash
 /opt/apache/bin/apachectl configtest
 ```
-Expect `Syntax OK`. Then:
+Expect `Syntax OK` (a warning about not being able to determine the server's fully qualified domain name is harmless and can be ignored). Then:
 ```bash
 sudo systemctl restart apache
 sudo firewall-cmd --permanent --add-port=8443/tcp
+sudo firewall-cmd --permanent --remove-service=http 2>/dev/null
 sudo firewall-cmd --reload
 ```
 
-Verify:
+Verify HTTPS works and HTTP is genuinely gone:
 ```bash
 curl -k -I https://192.168.10.40:8443
+curl -I http://192.168.10.40:80
 ```
-Expect `HTTP/1.1 200 OK`.
+Expect `HTTP/1.1 200 OK` from the first command, and a connection failure/refused from the second — confirming port 80 no longer answers at all, not just that it redirects.
 
-From here, Zabbix Frontend is reachable at `https://zabbix.corp-lab.com.vn:8443` (the non-standard port needs to be explicit — the CNAME itself doesn't carry port information), and Wazuh Dashboard stays on the standard `https://wazuh.corp-lab.com.vn` with no port needed, once [`13`](./13-mon01-wazuh-manager-configuration.md) is built.
+From here, Zabbix Frontend is reachable **only** at `https://zabbix.corp-lab.com.vn:8443` (the non-standard port needs to be explicit — the CNAME itself doesn't carry port information), and Wazuh Dashboard stays on the standard `https://wazuh.corp-lab.com.vn` with no port needed, once [`13`](./13-mon01-wazuh-manager-configuration.md) is built. Neither service answers plain HTTP on either VM.
 
 ---
 
