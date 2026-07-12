@@ -268,6 +268,22 @@ go env | grep -E "GOPATH|GOMODCACHE|GOCACHE"
 ```
 (A separate directory from root's `/mnt/data/go` — both users writing into the same path would need shared ownership/permissions worked out for no real benefit here.)
 
+**Grafana needs a different Node.js version than [Step 2](#step-2--install-nodejs-yarn-and-pnpm) installed.** That step installed Node 26.x system-wide for Prometheus's `pnpm`-based UI build, which only stated a minimum version (`22.22.3`) — but Grafana's own `package.json` pins a specific range (`"node": ">= 22 <25"`) and its `.nvmrc` narrows that further to an exact version. Node 26.x is genuinely outside that range and fails with `SyntaxError: Cannot use import statement outside a module` deep inside `ts-node`/`webpack-cli` — a confusing error that looks like a project misconfiguration but is really just an unsupported Node version. Use `nvm` (already installed if this VM built the Wazuh Dashboard in [`13`](./13-mon01-wazuh-manager-configuration.md#step-2--install-nvm); install it now otherwise) to run exactly the version this repository expects, without disturbing the system-wide Node 26.x that Prometheus already used successfully:
+```bash
+which nvm || (curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.bashrc)
+
+nvm install $(cat .nvmrc)
+nvm use $(cat .nvmrc)
+node --version
+```
+Expect `v24.11.0` (or whatever `.nvmrc` specifies at the time you're reading this — check it rather than assuming it still matches this exact version).
+
+`nvm`-managed Node versions don't share globally-installed packages with the system Node — reinstall `yarn` under this specific version:
+```bash
+npm install -g yarn
+yarn --version
+```
+
 ```bash
 yarn install --immutable
 ```
