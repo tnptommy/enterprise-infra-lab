@@ -39,7 +39,8 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 - [Step 21 — Add MON01 as the first monitored host](#step-21--add-mon01-as-the-first-monitored-host)
 - [Step 22 — Create triggers of different types](#step-22--create-triggers-of-different-types)
 - [Step 23 — Build a basic dashboard](#step-23--build-a-basic-dashboard)
-- [Step 24 — Final verification checklist](#step-24--final-verification-checklist)
+- [Step 24 — Logrotate for Zabbix Server and Apache](#step-24--logrotate-for-zabbix-server-and-apache)
+- [Step 25 — Final verification checklist](#step-25--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -382,8 +383,15 @@ sudo vi /opt/zabbix/etc/zabbix_server.conf
 Set:
 ```ini
 DBPassword=Your-Strong-Password-Here
+LogFile=/var/log/zabbix/zabbix_server.log
 ```
 (the `zabbix` database user's password from Step 8)
+
+**The `LogFile` line above is necessary, not optional** — a from-source Zabbix build's default config points logging at `/tmp/zabbix_server.log`, discovered the hard way while building this VM. `/tmp` isn't a proper place for a service's logs to live long-term (some systems periodically clean old files there via `systemd-tmpfiles`, and it has no relationship to the rest of this lab's logging/rotation conventions) — create the real log directory before starting the service:
+```bash
+sudo mkdir -p /var/log/zabbix
+sudo chown zabbix:zabbix /var/log/zabbix
+```
 
 ```bash
 sudo vi /opt/zabbix/etc/zabbix_agent2.conf
@@ -445,6 +453,14 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
+```
+
+**`/var/run/zabbix` needs to survive a reboot, and a plain `mkdir` won't do that.** `/var/run` is a `tmpfs` mount on most modern Linux systems — everything in it is wiped on every boot. `zabbix-server.service` above references a PID file inside `/var/run/zabbix/`, and without this directory existing *before* the service starts, it fails immediately with `cannot create PID file: No such file or directory` — discovered the hard way while building this VM, where it worked fine until the next reboot silently broke it again. Use `systemd-tmpfiles` to recreate the directory automatically on every boot, rather than relying on it having been created manually once:
+```bash
+sudo tee /etc/tmpfiles.d/zabbix.conf << 'EOF'
+d /var/run/zabbix 0755 zabbix zabbix -
+EOF
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/zabbix.conf
 ```
 
 ---
@@ -797,11 +813,60 @@ This means: if the host is already flagged as not reporting at all, the (now-mea
 
 ---
 
-## Step 24 — Final verification checklist
+## Step 24 — Logrotate for Zabbix Server and Apache
 
-1. **Zabbix server running:**
+**MariaDB doesn't need a logrotate rule here** — this build never created a `my.cnf` with an explicit `log-error` path, so it logs to stderr by default, which the systemd unit captures straight into `journald`, same as how Prometheus's logs are handled in [`14`](./14-mon01-prometheus-grafana-monitoring.md#step-13--logrotate-for-grafana) — `journald` already has its own rotation/size limits, nothing extra to configure.
+
+**Zabbix Server and Apache both write real log files to disk**, with no rotation of their own (unlike the packaged versions of these tools, which usually ship a `logrotate.d` rule automatically) — set that up now:
+
 ```bash
-sudo systemctl status zabbix-server zabbix-agent2
+sudo tee /etc/logrotate.d/zabbix-server << 'EOF'
+/var/log/zabbix/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 zabbix zabbix
+    sharedscripts
+    postrotate
+        systemctl reload zabbix-server >/dev/null 2>&1 || true
+    endscript
+}
+EOF
+
+sudo tee /etc/logrotate.d/apache-zabbix << 'EOF'
+/opt/apache/logs/*_log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    sharedscripts
+    postrotate
+        systemctl reload apache >/dev/null 2>&1 || true
+    endscript
+}
+EOF
+```
+
+Verify both rules are syntactically valid without waiting for the next scheduled run:
+```bash
+sudo logrotate -d /etc/logrotate.d/zabbix-server
+sudo logrotate -d /etc/logrotate.d/apache-zabbix
+```
+(`-d` is a dry run — it prints what logrotate *would* do without actually rotating anything yet.)
+
+---
+
+## Step 25 — Final verification checklist
+
+1. **Every service running, and enabled to start on boot** — `systemctl enable --now` (used throughout this document) handles both in one command, but worth confirming both conditions explicitly rather than just that the process happens to be running right now:
+```bash
+sudo systemctl status mariadb zabbix-server zabbix-agent2 apache
+sudo systemctl is-enabled mariadb zabbix-server zabbix-agent2 apache
 ```
 
 2. **Frontend reachable:**

@@ -31,7 +31,8 @@ No new VM or network configuration is needed here — this continues directly on
 - [Step 12 — Configure File Integrity Monitoring (FIM)](#step-12--configure-file-integrity-monitoring-fim)
 - [Step 13 — Suricata integration (forward pointer)](#step-13--suricata-integration-forward-pointer)
 - [Step 14 — Firewall](#step-14--firewall)
-- [Step 15 — Final verification checklist](#step-15--final-verification-checklist)
+- [Step 15 — Logrotate](#step-15--logrotate)
+- [Step 16 — Final verification checklist](#step-16--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -752,11 +753,72 @@ sudo firewall-cmd --reload
 
 ---
 
-## Step 15 — Final verification checklist
+## Step 15 — Logrotate
 
-1. **All four services running:**
+**Filebeat already handles its own log rotation** — `keepfiles: 7` in `/etc/filebeat/filebeat.yml`'s `logging.files` section (set by Wazuh's own template downloaded in [Step 7](#step-7--install-and-configure-filebeat)) caps it at 7 rotated files with no extra configuration needed here.
+
+**Wazuh Indexer is Java-based (log4j2), which typically has its own size-based rolling policy built in** — confirm that's actually true for this install rather than assuming it:
+```bash
+grep -A3 "RollingFile\|SizeBasedTriggeringPolicy" /etc/wazuh-indexer/log4j2.properties
+```
+If that shows a rolling policy already configured (the expected outcome for a standard Wazuh Indexer package), nothing further is needed here. If it comes back empty, that's worth investigating before assuming logs are safe long-term — but for the package-installed Indexer this document uses, the built-in policy should already be present.
+
+**Wazuh Manager and Wazuh Dashboard both need an external `logrotate` rule** — neither rotates its own logs by default:
+
+```bash
+sudo tee /etc/logrotate.d/wazuh-manager << 'EOF'
+/var/ossec/logs/ossec.log
+/var/ossec/logs/alerts/alerts.log
+/var/ossec/logs/alerts/alerts.json {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 wazuh wazuh
+    sharedscripts
+    postrotate
+        systemctl reload wazuh-manager >/dev/null 2>&1 || true
+    endscript
+}
+EOF
+
+sudo tee /etc/logrotate.d/wazuh-dashboard << 'EOF'
+/var/log/wazuh-dashboard/*.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    sharedscripts
+    postrotate
+        systemctl reload wazuh-dashboard >/dev/null 2>&1 || true
+    endscript
+}
+EOF
+```
+
+Verify both rules are syntactically valid without waiting for the next scheduled run:
+```bash
+sudo logrotate -d /etc/logrotate.d/wazuh-manager
+sudo logrotate -d /etc/logrotate.d/wazuh-dashboard
+```
+(`-d` is a dry run — it prints what logrotate *would* do without actually rotating anything yet.) If `/var/log/wazuh-dashboard` doesn't actually exist on this install (paths can vary slightly by package build), confirm the real path first:
+```bash
+sudo find / -maxdepth 4 -iname "*wazuh-dashboard*" -path "*log*" 2>/dev/null
+```
+and adjust the rule above to match before relying on it.
+
+---
+
+## Step 16 — Final verification checklist
+
+1. **All four services running, and enabled to start on boot** — `systemctl enable --now` (used throughout this document) handles both in one command, but worth confirming both conditions explicitly rather than just that the process happens to be running right now:
 ```bash
 sudo systemctl status wazuh-indexer wazuh-manager filebeat wazuh-dashboard
+sudo systemctl is-enabled wazuh-indexer wazuh-manager filebeat wazuh-dashboard
 ```
 
 2. **Filebeat successfully shipping to the Indexer:**
