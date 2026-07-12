@@ -596,43 +596,69 @@ sudo vi /var/ossec/etc/ossec.conf
 ```xml
 <syscheck>
   <disabled>no</disabled>
-
-  <!-- Baseline scan on startup, then every 12 hours for directories not covered by real-time below -->
-  <scan_on_start>yes</scan_on_start>
   <frequency>43200</frequency>
+  <scan_on_start>yes</scan_on_start>
+  <alert_new_files>yes</alert_new_files>
+  <auto_ignore frequency="10" timeframe="3600">no</auto_ignore>
 
   <!-- Tier 1: real-time + whodata — system binaries and configs where knowing who/what made
        the change, immediately, is worth the overhead -->
   <directories realtime="yes" whodata="yes" report_changes="yes">/etc</directories>
   <directories realtime="yes" whodata="yes" report_changes="yes">/var/ossec/etc</directories>
   <directories realtime="yes" whodata="yes" report_changes="yes">/opt/zabbix/etc</directories>
-  <directories realtime="yes" whodata="yes">/usr/bin</directories>
-  <directories realtime="yes" whodata="yes">/usr/sbin</directories>
-  <directories realtime="yes" whodata="yes">/bin</directories>
-  <directories realtime="yes" whodata="yes">/sbin</directories>
+  <directories realtime="yes" whodata="yes">/usr/bin,/usr/sbin</directories>
+  <directories realtime="yes" whodata="yes">/bin,/sbin</directories>
 
-  <!-- Tier 2: scheduled scan only — worth watching, but not worth real-time overhead -->
-  <directories check_all="yes">/boot</directories>
+  <!-- Tier 2: scheduled scan only — the Wazuh default; worth watching, not worth
+       real-time overhead -->
+  <directories>/boot</directories>
   <directories check_all="yes">/root</directories>
 
-  <!-- Don't record a diff for files that might contain secrets — report that they
-       changed, not their contents before/after -->
-  <nodiff>/etc/ssl/private</nodiff>
-  <nodiff>/etc/wazuh-indexer/certs</nodiff>
-  <nodiff>/etc/filebeat/certs</nodiff>
-
-  <!-- Standard noise exclusions — without these, log rotation and routine package
-       manager activity will bury real alerts -->
+  <!-- Files/directories to ignore — the Wazuh default list -->
   <ignore>/etc/mtab</ignore>
   <ignore>/etc/hosts.deny</ignore>
+  <ignore>/etc/mail/statistics</ignore>
   <ignore>/etc/random-seed</ignore>
+  <ignore>/etc/random.seed</ignore>
   <ignore>/etc/adjtime</ignore>
   <ignore>/etc/httpd/logs</ignore>
+  <ignore>/etc/utmpx</ignore>
+  <ignore>/etc/wtmpx</ignore>
+  <ignore>/etc/cups/certs</ignore>
+  <ignore>/etc/dumpdates</ignore>
+  <ignore>/etc/svc/volatile</ignore>
+
+  <!-- File types to ignore, plus this lab's own additions for backup/temp file patterns -->
   <ignore type="sregex">.log$|.swp$|.tmp$|~$</ignore>
   <ignore type="sregex">/var/lib/rpm</ignore>
   <ignore type="sregex">/var/cache/dnf</ignore>
 
-  <!-- Cap the diff size so a large config file rewrite doesn't generate a massive alert body -->
+  <!-- Check the file, but never compute/store the diff — this lab's own addition,
+       for anything that might contain secrets -->
+  <nodiff>/etc/ssl/private.key</nodiff>
+  <nodiff>/etc/wazuh-indexer/certs</nodiff>
+  <nodiff>/etc/filebeat/certs</nodiff>
+
+  <skip_nfs>yes</skip_nfs>
+  <skip_dev>yes</skip_dev>
+  <skip_proc>yes</skip_proc>
+  <skip_sys>yes</skip_sys>
+
+  <!-- Nice value for Syscheck process -->
+  <process_priority>10</process_priority>
+
+  <!-- Maximum output throughput -->
+  <max_eps>50</max_eps>
+
+  <!-- Database synchronization settings -->
+  <synchronization>
+    <enabled>yes</enabled>
+    <interval>5m</interval>
+    <max_eps>10</max_eps>
+  </synchronization>
+
+  <!-- Cap the diff size so a large config file rewrite doesn't generate a massive alert body —
+       this lab's own addition -->
   <diff>
     <disk_quota>
       <enabled>yes</enabled>
@@ -645,6 +671,8 @@ sudo vi /var/ossec/etc/ossec.conf
   </diff>
 </syscheck>
 ```
+
+> This starts from Wazuh's own default `syscheck` block (`skip_nfs`/`skip_dev`/`skip_proc`/`skip_sys` to avoid scanning virtual filesystems, `synchronization` for keeping the Manager's FIM database consistent, `max_eps` rate limiting, `auto_ignore`/`alert_new_files`) — none of that is worth discarding just to add `whodata`. Only the `directories` blocks (split into tiers) and the `diff`/extra `nodiff`/`ignore` entries are this lab's own additions layered on top.
 
 > **Extending this to Windows agents later:** once WINAPP01 gets a Wazuh Agent in [`17`](./17-agent-deployment-all-vms.md), the same `whodata`/`realtime` pattern applies to Windows directories too (`C:\Windows\System32`, etc.), and FIM there can additionally watch **registry keys** (`<windows_registry>` entries) — a Windows-specific capability with no Linux equivalent, worth configuring specifically in that later document rather than assuming this Linux-focused config transfers as-is.
 
