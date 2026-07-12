@@ -35,7 +35,8 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 - [Step 9 — node_exporter on Linux VMs](#step-9--node_exporter-on-linux-vms)
 - [Step 10 — windows_exporter on Windows VMs](#step-10--windows_exporter-on-windows-vms)
 - [Step 11 — Update Prometheus scrape targets](#step-11--update-prometheus-scrape-targets)
-- [Step 12 — Final verification checklist](#step-12--final-verification-checklist)
+- [Step 12 — Create Kibana Data Views](#step-12--create-kibana-data-views)
+- [Step 13 — Final verification checklist](#step-13--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -494,7 +495,29 @@ curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A2 '
 
 ---
 
-## Step 12 — Final verification checklist
+## Step 12 — Create Kibana Data Views
+
+Data flowing into Elasticsearch (confirmed in [Step 7](#step-7--complete-the-suricata-to-logstash-integration) and [Step 8](#step-8--winlogbeat-on-windows-vms)) isn't automatically visible in Kibana — a **Data View** (Kibana's current term for what was called an "index pattern" in older versions) has to be created first, telling Kibana which indices to query and which field holds the timestamp.
+
+On **LOG01**'s Kibana (`https://kibana.corp-lab.com.vn:5601` — or LOG01's IP directly if [`06`'s CNAME](./06-dc01-active-directory-dns-dhcp.md#step-5--configure-dns) hasn't been created yet):
+
+1. ☰ menu → **Stack Management → Data Views → Create data view**.
+2. **Name**: `Suricata`. **Index pattern**: `suricata-*`. **Timestamp field**: `@timestamp`. **Save data view to Kibana**.
+3. Repeat: **Name**: `Winlogbeat`. **Index pattern**: `winlogbeat-*`. **Timestamp field**: `@timestamp`.
+
+Verify both are actually browsable:
+
+4. ☰ menu → **Discover** → select the `Suricata` data view from the dropdown (top left) — expect to see WEB01's Suricata events, most recent first.
+5. Switch the dropdown to `Winlogbeat` — expect to see Windows Event Log entries from WINAPP01, DC01, and CLIENT01.
+
+> If the Data View creation screen shows no matching indices for either pattern, that means no index exists yet at the Elasticsearch level — this is a data-pipeline problem (Filebeat/Winlogbeat → Logstash → Elasticsearch), not a Kibana problem. Confirm directly against Elasticsearch before troubleshooting Kibana further:
+> ```bash
+> curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/_cat/indices?v" | grep -E "suricata|winlogbeat"
+> ```
+
+---
+
+## Step 13 — Final verification checklist
 
 1. **Every VM shows a healthy Zabbix Agent 2** (repeat the check from [Step 3](#step-3--confirm-zabbix-host-groups-populated-correctly)).
 
@@ -513,13 +536,15 @@ Expect all six agents listed as `Active`.
 
 6. **Every Prometheus target is healthy** (repeat the check from [Step 11](#step-11--update-prometheus-scrape-targets)).
 
-7. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
+7. **Kibana Data Views are browsable in Discover** (repeat the check from [Step 12](#step-12--create-kibana-data-views)).
+
+8. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
 ```bash
 # On WEB01
 sudo firewall-cmd --list-rich-rules
 ```
 
-If all six checks pass, every VM built so far reports into both monitoring ecosystems (Zabbix and Wazuh) and the Prometheus/Grafana metrics stack, and the two integrations left as forward pointers earlier in this lab are now genuinely working end-to-end rather than just configured-and-untested.
+If all eight checks pass, every VM built so far reports into both monitoring ecosystems (Zabbix and Wazuh) and the Prometheus/Grafana metrics stack, and the two integrations left as forward pointers earlier in this lab are now genuinely working end-to-end rather than just configured-and-untested.
 
 ---
 
