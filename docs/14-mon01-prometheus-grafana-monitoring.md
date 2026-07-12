@@ -60,12 +60,23 @@ Both Prometheus and Grafana's backend are Go projects, and both need a reasonabl
 ```bash
 cd ~
 wget https://go.dev/dl/go1.26.5.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
 sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz
 echo 'export PATH=/usr/local/go/bin:$PATH' | sudo tee /etc/profile.d/go.sh
 source /etc/profile.d/go.sh
 go version
 ```
-Expect `go version go1.26.5 linux/amd64`.
+Expect `go version go1.26.5 linux/amd64`. The `rm -rf /usr/local/go` before extracting isn't optional if a Go tarball was ever extracted here before (even an earlier version of this document used `go1.24.0`) — `tar` happily merges a new version's files on top of an old one without removing what's no longer needed, and leftover standard-library source files from two different Go versions in the same tree cause build failures like `ctrlEmpty redeclared in this block` that have nothing to do with Prometheus or Grafana's own code.
+
+**Redirect Go's module cache and build cache to the data disk now, before building anything.** By default both live under `~/go` and `~/.cache/go-build` on the OS disk — Grafana alone pulls a large enough dependency tree (AWS SDK, OpenAI client, gRPC/protobuf generated code, and dozens more) that its module cache plus build cache can run past 5 GB, on top of whatever Prometheus already used. Confirmed the hard way: this is exactly what pushed MON01's OS disk to 99% used mid-build while writing this document.
+```bash
+mkdir -p /mnt/data/go
+go env -w GOPATH=/mnt/data/go
+go env -w GOMODCACHE=/mnt/data/go/pkg/mod
+go env -w GOCACHE=/mnt/data/go/build-cache
+go env | grep -E "GOPATH|GOMODCACHE|GOCACHE"
+```
+`go env -w` writes this to Go's own persistent config file (not just the current shell's environment), so it applies automatically to every future `go`/`make build` invocation for this user without needing to re-export anything. Run this as whichever user will actually invoke `make build` — for Grafana that's the `builder` user set up in [Step 7](#step-7--build-grafana-from-source), not root.
 
 ---
 
@@ -242,7 +253,19 @@ As `builder`:
 git clone --depth 1 --branch v13.1.0 https://github.com/grafana/grafana.git
 cd grafana
 export PATH=/usr/local/go/bin:$PATH
+```
 
+`go env -w` from [Step 1](#step-1--install-go) only applied to whichever user ran it there — since that's a per-user config file (`$HOME/.config/go/env`), redo it now for `builder` specifically, or Grafana's dependency download repeats the exact disk-filling problem [Step 1](#step-1--install-go) warned about, just under a different `$HOME`:
+```bash
+mkdir -p /mnt/data/go-builder
+go env -w GOPATH=/mnt/data/go-builder
+go env -w GOMODCACHE=/mnt/data/go-builder/pkg/mod
+go env -w GOCACHE=/mnt/data/go-builder/build-cache
+go env | grep -E "GOPATH|GOMODCACHE|GOCACHE"
+```
+(A separate directory from root's `/mnt/data/go` — both users writing into the same path would need shared ownership/permissions worked out for no real benefit here.)
+
+```bash
 yarn install --immutable
 ```
 This is considerably lighter than the Wazuh Dashboard's multi-repo plugin assembly in [`13`](./13-mon01-wazuh-manager-configuration.md#step-8--build-the-wazuh-dashboard-package) — Grafana is a single self-contained repository with one straightforward build.
