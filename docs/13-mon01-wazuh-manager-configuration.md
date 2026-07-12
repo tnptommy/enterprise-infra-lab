@@ -283,13 +283,14 @@ Expect a JSON response describing the cluster (the default `admin:admin` credent
 
 ## Step 7 — Install and configure Filebeat
 
-Filebeat ships Wazuh Manager's alerts to the Indexer — the piece that actually needs the TLS certificates in the 4.x architecture:
+Filebeat ships Wazuh Manager's alerts to the Indexer — the piece that actually needs the TLS certificates in the 4.x architecture.
 
+**Use the OSS repository, not the default Elastic repository.** Wazuh Indexer is an OpenSearch fork, not genuine Elasticsearch — the default (non-OSS) Filebeat build actively checks that whatever it's talking to is a "default distribution" Elasticsearch (via the `/_license` endpoint and response metadata), and rejects the connection otherwise with `Filebeat requires the default distribution of Elasticsearch`, even though the actual data connection (TLS, auth) works perfectly fine. This is Wazuh's own officially documented pairing, not a workaround — Filebeat OSS drops that check entirely:
 ```bash
-sudo tee /etc/yum.repos.d/elastic.repo << 'EOF'
-[elastic-7.x]
-name=Elastic repository for 7.x packages
-baseurl=https://artifacts.elastic.co/packages/7.x/yum
+sudo tee /etc/yum.repos.d/elastic-oss.repo << 'EOF'
+[elastic-oss-7.x]
+name=Elastic OSS repository for 7.x packages
+baseurl=https://artifacts.elastic.co/packages/oss-7.x/yum
 gpgcheck=1
 gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
 enabled=1
@@ -299,6 +300,7 @@ EOF
 
 sudo dnf install -y filebeat-7.10.2
 ```
+> The package is still named plain `filebeat` even in this OSS repo (not `filebeat-oss`) — what makes it the OSS build is which repository it came from, not the package name. If you already added the regular (non-OSS) `elastic-7.x` repo and installed from there, `dnf` may resolve to that version instead; if `filebeat test output` later fails with the distribution error described above, confirm with `dnf info filebeat` which repo it actually installed from, remove it, and reinstall explicitly from `elastic-oss-7.x`.
 
 Download Wazuh's Filebeat template and module (module version `0.5`, matching the `4.14.6` compatibility matrix — earlier 4.x releases used `0.4`, which won't have current field mappings):
 ```bash
@@ -310,13 +312,13 @@ sudo mkdir -p /usr/share/filebeat/module
 sudo curl -s https://packages.wazuh.com/4.x/filebeat/wazuh-filebeat-0.5.tar.gz | sudo tar -xvz -C /usr/share/filebeat/module
 ```
 
-Confirm `/etc/filebeat/filebeat.yml`'s `hosts` entry points at MON01 itself:
+Confirm `/etc/filebeat/filebeat.yml`'s `hosts` entry points at MON01 itself — **use the real IP (`192.168.10.40`), not `127.0.0.1`**, even though both reach the same machine: the certificate generated in [Step 3](#step-3--generate-certificates) is issued for `192.168.10.40` specifically (matching `config.yml`'s node IP), so TLS hostname verification fails against `127.0.0.1` with `x509: certificate is valid for 192.168.10.40, not 127.0.0.1`, even though the connection itself succeeds:
 ```bash
 sudo vi /etc/filebeat/filebeat.yml
 ```
 ```yaml
 output.elasticsearch:
-  hosts: ["127.0.0.1:9200"]
+  hosts: ["192.168.10.40:9200"]
 ```
 
 Copy the certificates Filebeat needs:
@@ -501,12 +503,10 @@ find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm
 
 ## Step 9 — Install and configure Wazuh Dashboard
 
-```bash
 Install whatever `.rpm` the previous step actually produced — confirm the exact location and filename first:
 ```bash
 find /home/builder/wazuh-dashboard/dev-tools/build-packages/output -iname "*.rpm"
 sudo rpm -ivh <path-from-the-find-command-above>
-```
 ```
 
 Copy certificates:
