@@ -9,7 +9,7 @@ Agents themselves are installed via official packages, not built from source —
 
 ## VMs covered
 
-| VM | OS | Zabbix Agent | Wazuh Agent | Exporter |
+| VM | OS | Zabbix Agent 2 | Wazuh Agent | Exporter |
 |---|---|---|---|---|
 | WEB01 | Rocky Linux 10 | Agent 2 | Wazuh Agent | node_exporter |
 | WINAPP01 | Windows Server 2025 | Agent (Windows) | Wazuh Agent (Windows) | windows_exporter |
@@ -25,7 +25,7 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 ## Table of contents
 
 - [Step 1 — Zabbix Agent 2 on Linux VMs](#step-1--zabbix-agent-2-on-linux-vms)
-- [Step 2 — Zabbix Agent on Windows VMs](#step-2--zabbix-agent-on-windows-vms)
+- [Step 2 — Zabbix Agent 2 on Windows VMs](#step-2--zabbix-agent-2-on-windows-vms)
 - [Step 3 — Confirm Zabbix host groups populated correctly](#step-3--confirm-zabbix-host-groups-populated-correctly)
 - [Step 4 — Wazuh Agent on Linux VMs](#step-4--wazuh-agent-on-linux-vms)
 - [Step 5 — Wazuh Agent on Windows VMs](#step-5--wazuh-agent-on-windows-vms)
@@ -72,7 +72,7 @@ sudo firewall-cmd --reload
 
 ---
 
-## Step 2 — Zabbix Agent on Windows VMs
+## Step 2 — Zabbix Agent 2 on Windows VMs
 
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
@@ -83,7 +83,7 @@ msiexec /i zabbix_agent2-8.0.0-windows-amd64-openssl.msi /qn SERVER=192.168.10.4
 ```
 3. Open the firewall:
 ```powershell
-New-NetFirewallRule -DisplayName "Zabbix Agent" -Direction Inbound -Protocol TCP -LocalPort 10050 -Action Allow
+New-NetFirewallRule -DisplayName "Zabbix Agent 2" -Direction Inbound -Protocol TCP -LocalPort 10050 -Action Allow
 ```
 4. Confirm the service is running:
 ```powershell
@@ -334,7 +334,7 @@ curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A2 '
 
 ## Step 11 — Final verification checklist
 
-1. **Every VM shows a healthy Zabbix Agent** (repeat the check from [Step 3](#step-3--confirm-zabbix-host-groups-populated-correctly)).
+1. **Every VM shows a healthy Zabbix Agent 2** (repeat the check from [Step 3](#step-3--confirm-zabbix-host-groups-populated-correctly)).
 
 2. **Every VM shows as connected in Wazuh**:
 ```bash
