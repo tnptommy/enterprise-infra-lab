@@ -222,7 +222,7 @@ sudo systemctl enable --now node_exporter
 
 Verify Prometheus is actually scraping it — check the target's `up` status rather than just that the process is running:
 ```bash
-curl -s 'http://localhost:9090/api/v1/query?query=up{job="node_exporter"}' | grep -o '"value":\[[^]]*\]'
+curl -s --data-urlencode 'query=up{job="node_exporter"}' http://localhost:9090/api/v1/query | grep -o '"value":\[[^]]*\]'
 ```
 Expect the value `1` (not `0`) — confirms Prometheus successfully scraped node_exporter, not just that both processes happen to be alive independently.
 
