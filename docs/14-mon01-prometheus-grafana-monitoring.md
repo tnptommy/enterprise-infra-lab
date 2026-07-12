@@ -6,7 +6,7 @@ No new VM is needed — this continues directly on MON01. This document also ins
 
 | Component | Version used | Source |
 |---|---|---|
-| Prometheus | 3.13.0 (current LTS, supported through July 2027) | https://github.com/prometheus/prometheus |
+| Prometheus | 3.13.1 (current LTS, supported through July 2027) | https://github.com/prometheus/prometheus |
 | Grafana | 13.1.0 (current stable) | https://github.com/grafana/grafana |
 | node_exporter | 1.9.1 (current stable) | https://github.com/prometheus/node_exporter |
 
@@ -73,7 +73,7 @@ Expect `go version go1.24.0 linux/amd64`.
 
 ```bash
 cd ~
-git clone --depth 1 --branch v3.13.0 https://github.com/prometheus/prometheus.git
+git clone --depth 1 --branch v3.13.1 https://github.com/prometheus/prometheus.git
 cd prometheus
 make build
 ```
