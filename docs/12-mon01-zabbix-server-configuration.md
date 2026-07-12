@@ -34,11 +34,12 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 - [Step 16 — Build Apache and PHP from source, deploy the frontend](#step-16--build-apache-and-php-from-source-deploy-the-frontend)
 - [Step 17 — SELinux and firewall](#step-17--selinux-and-firewall)
 - [Step 18 — Start services and complete the frontend wizard](#step-18--start-services-and-complete-the-frontend-wizard)
-- [Step 19 — Change the default Admin password](#step-19--change-the-default-admin-password)
-- [Step 20 — Add MON01 as the first monitored host](#step-20--add-mon01-as-the-first-monitored-host)
-- [Step 21 — Create triggers of different types](#step-21--create-triggers-of-different-types)
-- [Step 22 — Build a basic dashboard](#step-22--build-a-basic-dashboard)
-- [Step 23 — Final verification checklist](#step-23--final-verification-checklist)
+- [Step 19 — Enable HTTPS](#step-19--enable-https)
+- [Step 20 — Change the default Admin password](#step-20--change-the-default-admin-password)
+- [Step 21 — Add MON01 as the first monitored host](#step-21--add-mon01-as-the-first-monitored-host)
+- [Step 22 — Create triggers of different types](#step-22--create-triggers-of-different-types)
+- [Step 23 — Build a basic dashboard](#step-23--build-a-basic-dashboard)
+- [Step 24 — Final verification checklist](#step-24--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -328,7 +329,7 @@ cd zabbix-8.0.0
 
 **Explanation of the key flags:**
 - `--enable-server` → builds `zabbix_server`, the core monitoring daemon.
-- `--enable-agent2` → builds `zabbix_agent2` (Go-based) alongside it, so MON01 can monitor itself in [Step 20](#step-20--add-mon01-as-the-first-monitored-host) without a separate build pass.
+- `--enable-agent2` → builds `zabbix_agent2` (Go-based) alongside it, so MON01 can monitor itself in [Step 21](#step-21--add-mon01-as-the-first-monitored-host) without a separate build pass.
 - `--with-mysql` → links against MariaDB's client libraries (MariaDB is wire-compatible with MySQL, so Zabbix's `--with-mysql` flag works against it correctly).
 - `--with-libpcre2` → regex support for item/trigger matching.
 - `--with-net-snmp` → optional SNMP monitoring support, useful later for network devices.
@@ -652,7 +653,69 @@ You'll land on the Zabbix login page.
 
 ---
 
-## Step 19 — Change the default Admin password
+## Step 19 — Enable HTTPS
+
+**Only needed once Wazuh joins this VM in [`13`](./13-mon01-wazuh-manager-configuration.md) — skip this step if that hasn't happened yet.** Wazuh Dashboard listens on port 443 by default, and two separate services can't both bind port 443 on the same IP without a reverse proxy distinguishing them by hostname (SNI) — which this lab doesn't set up. Rather than fight over the standard HTTPS port, give Zabbix its own HTTPS port instead.
+
+Generate a self-signed certificate:
+```bash
+sudo mkdir -p /opt/apache/conf/ssl
+sudo openssl req -x509 -nodes -days 825 \
+  -newkey rsa:2048 \
+  -keyout /opt/apache/conf/ssl/zabbix.key \
+  -out /opt/apache/conf/ssl/zabbix.crt \
+  -subj "/C=VN/O=CorpLab/CN=zabbix.corp-lab.com.vn"
+```
+
+Enable Apache's SSL module — it was already compiled in via `--enable-ssl --with-ssl` when Apache was built in [Step 16](#step-16--build-apache-and-php-from-source-deploy-the-frontend), but ships commented out by default:
+```bash
+grep "LoadModule ssl_module" /opt/apache/conf/httpd.conf
+```
+If that line starts with `#`, uncomment it:
+```bash
+sudo sed -i 's/#LoadModule ssl_module modules\/mod_ssl.so/LoadModule ssl_module modules\/mod_ssl.so/' /opt/apache/conf/httpd.conf
+```
+
+Add an SSL vhost on port 8443, alongside the existing plain-HTTP vhost on port 80 (both stay active — HTTP isn't being removed, just supplemented):
+```bash
+sudo tee -a /opt/apache/conf/httpd.conf << 'EOF'
+Listen 8443
+<VirtualHost *:8443>
+    SSLEngine on
+    SSLCertificateFile /opt/apache/conf/ssl/zabbix.crt
+    SSLCertificateKeyFile /opt/apache/conf/ssl/zabbix.key
+    DocumentRoot /opt/apache/htdocs
+    <Directory /opt/apache/htdocs>
+        AllowOverride None
+        Require all granted
+        DirectoryIndex index.php
+    </Directory>
+</VirtualHost>
+EOF
+```
+
+Test the config before restarting — catches syntax mistakes without taking the frontend down if something's wrong:
+```bash
+/opt/apache/bin/apachectl configtest
+```
+Expect `Syntax OK`. Then:
+```bash
+sudo systemctl restart apache
+sudo firewall-cmd --permanent --add-port=8443/tcp
+sudo firewall-cmd --reload
+```
+
+Verify:
+```bash
+curl -k -I https://192.168.10.40:8443
+```
+Expect `HTTP/1.1 200 OK`.
+
+From here, Zabbix Frontend is reachable at `https://zabbix.corp-lab.com.vn:8443` (the non-standard port needs to be explicit — the CNAME itself doesn't carry port information), and Wazuh Dashboard stays on the standard `https://wazuh.corp-lab.com.vn` with no port needed, once [`13`](./13-mon01-wazuh-manager-configuration.md) is built.
+
+---
+
+## Step 20 — Change the default Admin password
 
 1. Log in with the default credentials: username `Admin`, password `zabbix`.
 2. Immediately change it: click the user icon (top right) → **Profile** → **Change password**.
@@ -660,7 +723,7 @@ You'll land on the Zabbix login page.
 
 ---
 
-## Step 20 — Add MON01 as the first monitored host
+## Step 21 — Add MON01 as the first monitored host
 
 Full agent rollout to every other VM in this lab happens in [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) — this step just gets one working example end-to-end using the agent already built on MON01 itself in Step 11.
 
@@ -675,7 +738,7 @@ Confirm the agent is reachable — after a minute or two, **Data collection → 
 
 ---
 
-## Step 21 — Create triggers of different types
+## Step 22 — Create triggers of different types
 
 The **Linux by Zabbix agent** template already ships with a comprehensive set of triggers (high CPU, low disk space, etc.). Rather than duplicate those, this step builds a small set of custom triggers that each demonstrate a distinct trigger mechanism Zabbix supports, using MON01 itself as the test host.
 
@@ -712,7 +775,7 @@ This means: if the host is already flagged as not reporting at all, the (now-mea
 
 ---
 
-## Step 22 — Build a basic dashboard
+## Step 23 — Build a basic dashboard
 
 1. **Dashboards → All dashboards → Create dashboard**.
 2. **Name**: `Infrastructure Overview`.
@@ -723,7 +786,7 @@ This means: if the host is already flagged as not reporting at all, the (now-mea
 
 ---
 
-## Step 23 — Final verification checklist
+## Step 24 — Final verification checklist
 
 1. **Zabbix server running:**
 ```bash
@@ -742,7 +805,7 @@ sudo tail -20 /var/log/zabbix/zabbix_server.log
 
 4. **MON01 host shows green (reachable) in Data collection → Hosts.**
 
-5. **Triggers were created** (repeat the checks from [Step 21](#step-21--create-triggers-of-different-types)).
+5. **Triggers were created** (repeat the checks from [Step 22](#step-22--create-triggers-of-different-types)).
 
 6. **Domain-join succeeded:**
 ```bash
