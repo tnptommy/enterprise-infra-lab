@@ -59,13 +59,13 @@ Both Prometheus and Grafana's backend are Go projects, and both need a reasonabl
 
 ```bash
 cd ~
-wget https://go.dev/dl/go1.24.0.linux-amd64.tar.gz
-sudo tar -C /usr/local -xzf go1.24.0.linux-amd64.tar.gz
+wget https://go.dev/dl/go1.26.5.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.26.5.linux-amd64.tar.gz
 echo 'export PATH=/usr/local/go/bin:$PATH' | sudo tee /etc/profile.d/go.sh
 source /etc/profile.d/go.sh
 go version
 ```
-Expect `go version go1.24.0 linux/amd64`.
+Expect `go version go1.26.5 linux/amd64`.
 
 ---
 
