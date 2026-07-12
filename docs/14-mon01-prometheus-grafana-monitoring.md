@@ -247,10 +247,9 @@ yarn install --immutable
 ```
 This is considerably lighter than the Wazuh Dashboard's multi-repo plugin assembly in [`13`](./13-mon01-wazuh-manager-configuration.md#step-8--build-the-wazuh-dashboard-package) — Grafana is a single self-contained repository with one straightforward build.
 
-Build the backend (Go) and frontend (TypeScript/React) separately:
+Build the backend (Go) and frontend (TypeScript/React) together — `make build` runs both `build-go` and `build-js` as one target (confirmed against this tag's actual `Makefile` rather than assumed, the same lesson learned the hard way with Prometheus's `consoles`/`console_libraries` directories no longer existing in [Step 3](#step-3--build-prometheus-from-source)):
 ```bash
-go run build.go build
-yarn build
+make build
 ```
 Expect this to take a while (the frontend build in particular) — normal, not a sign of a problem.
 
