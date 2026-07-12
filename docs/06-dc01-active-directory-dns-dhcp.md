@@ -223,7 +223,7 @@ Several VMs in this lab host more than one distinct web UI (MON01 alone will run
 | `wsus.corp-lab.com.vn` | `winapp01.corp-lab.com.vn` | WSUS console | [`09`](./09-winapp01-iis-sql-wsus.md) |
 | `zabbix.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Zabbix Frontend — **HTTPS-only, on port `8443`** (not the default 443, since Wazuh Dashboard occupies 443 on this same VM; plain HTTP is disabled entirely, not just supplemented — see [`12`'s Step 19](./12-mon01-zabbix-server-configuration.md#step-19--enable-https-only-access)) | [`12`](./12-mon01-zabbix-server-configuration.md) |
 | `wazuh.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Wazuh Dashboard | [`13`](./13-mon01-wazuh-manager-configuration.md) |
-| `grafana.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Grafana | [`14`](./14-mon01-prometheus-grafana-monitoring.md) |
+| `grafana.corp-lab.com.vn` | `mon01.corp-lab.com.vn` | Grafana — **HTTPS-only, on port `9443`** | [`14`](./14-mon01-prometheus-grafana-monitoring.md) |
 | `kibana.corp-lab.com.vn` | `log01.corp-lab.com.vn` | Kibana | [`15`](./15-log01-elasticsearch-logstash-kibana.md) |
 | `opensearch.corp-lab.com.vn` | `log02.corp-lab.com.vn` | OpenSearch Dashboards | [`16`](./16-log02-opensearch-deployment.md) |
 | `keycloak.corp-lab.com.vn` | `ops01.corp-lab.com.vn` | Keycloak admin console | [`19`](./19-ops01-ansible-keycloak.md) |
