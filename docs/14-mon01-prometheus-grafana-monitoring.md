@@ -74,11 +74,11 @@ Expect `go version go1.26.5 linux/amd64`.
 Both Prometheus and Grafana bundle a JavaScript-based web UI alongside their Go backend, and `make build`/`go run build.go build` compile that frontend as part of the normal build — this needs to happen **before** Step 3, not after, since Prometheus's own `make build` fails immediately without it. The two projects use different package managers for their frontend (Prometheus: `pnpm`; Grafana: `yarn`), so install both now:
 
 ```bash
-curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+curl -fsSL https://rpm.nodesource.com/setup_26.x | sudo bash -
 sudo dnf install -y nodejs
 node --version
 ```
-Expect `v22.x` or newer — Prometheus 3.13.x's web UI build specifically checks for at least `22.22.3` and refuses to proceed on an older Node, even though the version installed here otherwise looks "new enough" at a glance.
+Expect `v26.x` — well past Prometheus 3.13.x's stated minimum of `22.22.3`, so no version-check surprises here.
 
 ```bash
 sudo npm install -g yarn pnpm
