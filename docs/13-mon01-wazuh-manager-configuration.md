@@ -557,17 +557,21 @@ Expect `talk to server... OK`.
 https://192.168.10.40
 ```
 Accept the self-signed certificate warning.
+
 2. Log in with the default credentials: `admin` / `admin`.
+
 3. Immediately change the Indexer's internal passwords:
 ```bash
 sudo bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -a
 ```
 Copy the `admin` password immediately into [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `MON01_10.40` group, entry "Wazuh Dashboard admin".
+
 4. Update Filebeat's keystore with the new `admin` password:
 ```bash
 echo 'New-Password-From-Script-Output' | sudo filebeat keystore add password --stdin --force
 sudo systemctl restart filebeat
 ```
+
 5. Log out and back into the Dashboard with the new password to confirm it took effect.
 
 ---
