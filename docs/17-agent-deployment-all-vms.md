@@ -5,7 +5,7 @@ This document is different in character from every build document before it — 
 1. [`08-web01-suricata-nids.md`](./08-web01-suricata-nids.md) and [`13`](./13-mon01-wazuh-manager-configuration.md#step-13--suricata-integration-forward-pointer) — WEB01's Suricata alerts reaching Wazuh Manager via a Wazuh Agent.
 2. [`15`](./15-log01-elasticsearch-logstash-kibana.md#step-14--configure-logstash) — WEB01's Suricata alerts also reaching LOG01's Logstash pipeline via Filebeat.
 
-Agents themselves are installed via official packages, not built from source — nobody builds a monitoring agent from source in practice, and unlike the server-side components this lab has spent considerable effort building, an agent is a thin, mostly-static piece of software with little to learn from compiling it yourself.
+**Zabbix Agent 2 is built from source** on the Linux VMs — same `8.0.0beta2` tarball as MON01's Zabbix Server in [`12`](./12-mon01-zabbix-server-configuration.md), keeping the agent-to-server protocol version matched, consistent with this lab's general preference for building things from source where practical. Wazuh Agent and the Prometheus exporters, by contrast, are installed via official packages/binaries — Wazuh Agent's source build shares the same multi-repo complexity already worked through once for the Manager/Indexer in [`13`](./13-mon01-wazuh-manager-configuration.md), with little additional value in repeating that effort for a comparatively thin agent; the exporters are simple, self-contained static Go binaries with no meaningful "build" step to learn from.
 
 ## VMs covered
 
@@ -24,7 +24,7 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 
 ## Table of contents
 
-- [Step 1 — Zabbix Agent 2 on Linux VMs](#step-1--zabbix-agent-2-on-linux-vms)
+- [Step 1 — Zabbix Agent 2 from source on Linux VMs](#step-1--zabbix-agent-2-from-source-on-linux-vms)
 - [Step 2 — Zabbix Agent 2 on Windows VMs](#step-2--zabbix-agent-2-on-windows-vms)
 - [Step 3 — Confirm Zabbix host groups populated correctly](#step-3--confirm-zabbix-host-groups-populated-correctly)
 - [Step 4 — Wazuh Agent on Linux VMs](#step-4--wazuh-agent-on-linux-vms)
@@ -39,24 +39,47 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 
 ---
 
-## Step 1 — Zabbix Agent 2 on Linux VMs
+## Step 1 — Zabbix Agent 2 from source on Linux VMs
+
+Same source tarball as MON01's Zabbix Server build in [`12`](./12-mon01-zabbix-server-configuration.md#step-11--download-and-configure-zabbix-source) — matching version keeps the agent-to-server protocol in sync, and it's the same pre-release branch this lab has already committed to for Zabbix. Unlike MON01, these VMs only need the agent, not the full server — a lighter `configure` with `--enable-agent2` alone, skipping the server-specific database/SNMP flags entirely.
 
 Run on **WEB01**, **LOG01**, and **LOG02**:
 
 ```bash
-sudo rpm --import https://repo.zabbix.com/keys/RPM-GPG-KEY-ZABBIX-8B0D4C4D
-sudo dnf install -y https://repo.zabbix.com/zabbix/8.0/release/rocky/10/noarch/zabbix-release-latest.el10.noarch.rpm
-sudo dnf clean all
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y pkgconfig openssl openssl-devel pcre2-devel golang git libstdc++-static
 
-sudo sed -i '/\[zabbix-unstable\]/,/^\[/ s/enabled=0/enabled=1/' /etc/yum.repos.d/zabbix.repo
-
-sudo dnf install -y zabbix-agent2
+sudo groupadd --system zabbix
+sudo useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c "Zabbix Monitoring System" zabbix
 ```
-Same repo and unstable-section-enable pattern as MON01's own Zabbix build in [`12`](./12-mon01-zabbix-server-configuration.md#step-9--install-zabbix-build-dependencies) — kept on the same pre-release 8.0 branch for protocol compatibility with the Zabbix Server this agent reports to.
+Same dependency list as MON01's build (minus MariaDB/SNMP-specific packages the agent doesn't need) — `libstdc++-static` is included here too, for the same reason documented in [`12`](./12-mon01-zabbix-server-configuration.md#step-9--install-zabbix-build-dependencies): a missing static libstdc++ causes a linking failure partway through the build that has nothing obviously to do with the actual error message.
+
+```bash
+cd ~
+wget https://cdn.zabbix.com/zabbix/sources/development/8.0/zabbix-8.0.0beta2.tar.gz
+tar -xzvf zabbix-8.0.0beta2.tar.gz
+mv zabbix-8.0.0beta2 zabbix-8.0.0
+cd zabbix-8.0.0
+
+./configure \
+  --prefix=/opt/zabbix \
+  --enable-agent2 \
+  --with-openssl \
+  --with-libpcre2 \
+  --enable-ipv6
+
+make -j$(nproc)
+sudo make install
+```
+
+Confirm the binary built:
+```bash
+/opt/zabbix/sbin/zabbix_agent2 --version
+```
 
 Configure it to point at MON01:
 ```bash
-sudo vi /etc/zabbix/zabbix_agent2.conf
+sudo vi /opt/zabbix/etc/zabbix_agent2.conf
 ```
 ```ini
 Server=192.168.10.40
@@ -64,10 +87,35 @@ ServerActive=192.168.10.40
 Hostname=<WEB01, LOG01, or LOG02 — whichever this VM actually is>
 ```
 
+Create a systemd unit — a source build has no packaged one, same as every other from-source service in this lab:
 ```bash
+sudo tee /etc/systemd/system/zabbix-agent2.service << 'EOF'
+[Unit]
+Description=Zabbix Agent 2
+After=network.target
+
+[Service]
+Type=simple
+User=zabbix
+Group=zabbix
+ExecStart=/opt/zabbix/sbin/zabbix_agent2 -c /opt/zabbix/etc/zabbix_agent2.conf --foreground
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
 sudo systemctl enable --now zabbix-agent2
+
 sudo firewall-cmd --permanent --add-port=10050/tcp
 sudo firewall-cmd --reload
+```
+
+Clean up the source tree once confirmed working, same disk-hygiene lesson as every other from-source build in this lab:
+```bash
+rm -rf ~/zabbix-8.0.0 ~/zabbix-8.0.0beta2.tar.gz
 ```
 
 ---
