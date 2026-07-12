@@ -557,28 +557,38 @@ Expect `talk to server... OK`.
 https://192.168.10.40
 ```
 Accept the self-signed certificate warning.
-
 2. Log in with the default credentials: `admin` / `admin`.
-
 3. Immediately change the Indexer's internal passwords:
 ```bash
 sudo bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/wazuh-passwords-tool.sh -a
 ```
 Copy the `admin` password immediately into [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `MON01_10.40` group, entry "Wazuh Dashboard admin".
-
 4. Update Filebeat's keystore with the new `admin` password:
 ```bash
 echo 'New-Password-From-Script-Output' | sudo filebeat keystore add password --stdin --force
 sudo systemctl restart filebeat
 ```
-
 5. Log out and back into the Dashboard with the new password to confirm it took effect.
 
 ---
 
 ## Step 12 — Configure File Integrity Monitoring (FIM)
 
-Wazuh Manager's FIM (via the `syscheck` module) watches specified directories for changes and reports them as alerts. Since MON01's own local filesystem changes aren't especially interesting to monitor (the real value comes once agents are deployed to WEB01, WINAPP01, and others in [`17`](./17-agent-deployment-all-vms.md)), this step configures FIM on the Manager's own local ruleset so it's ready to push out to agents later, and enables it for the Manager itself as a working local example.
+Wazuh Manager's FIM (via the `syscheck` module) watches specified directories for changes and reports them as alerts. Since MON01's own local filesystem changes aren't especially interesting to monitor (the real value comes once agents are deployed to WEB01, WINAPP01, and others in [`17`](./17-agent-deployment-all-vms.md)), this step configures FIM on the Manager's own local ruleset so it's ready to push out to agents later, and enables it for the Manager itself as a working local example — but configured the way a real deployment would be, not just switched on with defaults.
+
+**Three things separate a genuinely useful FIM setup from a bare "enable it" config:**
+1. **`whodata`, not just `check_all`** — plain FIM tells you *that* a file changed; `whodata` (backed by the Linux Audit subsystem) tells you *who* changed it and *what process* did it. For anything you'd actually investigate after an alert, this difference matters enormously.
+2. **Tiered monitoring, not one flat list** — real-time + whodata for directories where the delay of a scheduled scan matters (system binaries, configs); scheduled scanning for everything else, since real-time watches have real CPU/inotify overhead and aren't worth paying everywhere.
+3. **A real ignore list** — the default noise from log rotation, package manager caches, and temp files will drown out genuine alerts if left unfiltered.
+
+### Install and configure auditd (required for `whodata` on Linux)
+
+```bash
+sudo dnf install -y audit
+sudo systemctl enable --now auditd
+```
+
+### Configure syscheck
 
 ```bash
 sudo vi /var/ossec/etc/ossec.conf
@@ -586,28 +596,87 @@ sudo vi /var/ossec/etc/ossec.conf
 ```xml
 <syscheck>
   <disabled>no</disabled>
+
+  <!-- Baseline scan on startup, then every 12 hours for directories not covered by real-time below -->
+  <scan_on_start>yes</scan_on_start>
   <frequency>43200</frequency>
 
-  <directories check_all="yes" report_changes="yes">/etc</directories>
-  <directories check_all="yes" report_changes="yes">/var/ossec/etc</directories>
-  <directories check_all="yes" report_changes="yes">/opt/zabbix/etc</directories>
+  <!-- Tier 1: real-time + whodata — system binaries and configs where knowing who/what made
+       the change, immediately, is worth the overhead -->
+  <directories realtime="yes" whodata="yes" report_changes="yes">/etc</directories>
+  <directories realtime="yes" whodata="yes" report_changes="yes">/var/ossec/etc</directories>
+  <directories realtime="yes" whodata="yes" report_changes="yes">/opt/zabbix/etc</directories>
+  <directories realtime="yes" whodata="yes">/usr/bin</directories>
+  <directories realtime="yes" whodata="yes">/usr/sbin</directories>
+  <directories realtime="yes" whodata="yes">/bin</directories>
+  <directories realtime="yes" whodata="yes">/sbin</directories>
 
+  <!-- Tier 2: scheduled scan only — worth watching, but not worth real-time overhead -->
+  <directories check_all="yes">/boot</directories>
+  <directories check_all="yes">/root</directories>
+
+  <!-- Don't record a diff for files that might contain secrets — report that they
+       changed, not their contents before/after -->
+  <nodiff>/etc/ssl/private</nodiff>
+  <nodiff>/etc/wazuh-indexer/certs</nodiff>
+  <nodiff>/etc/filebeat/certs</nodiff>
+
+  <!-- Standard noise exclusions — without these, log rotation and routine package
+       manager activity will bury real alerts -->
   <ignore>/etc/mtab</ignore>
   <ignore>/etc/hosts.deny</ignore>
-  <ignore type="sregex">.log$|.swp$</ignore>
+  <ignore>/etc/random-seed</ignore>
+  <ignore>/etc/adjtime</ignore>
+  <ignore>/etc/httpd/logs</ignore>
+  <ignore type="sregex">.log$|.swp$|.tmp$|~$</ignore>
+  <ignore type="sregex">/var/lib/rpm</ignore>
+  <ignore type="sregex">/var/cache/dnf</ignore>
+
+  <!-- Cap the diff size so a large config file rewrite doesn't generate a massive alert body -->
+  <diff>
+    <disk_quota>
+      <enabled>yes</enabled>
+      <limit>100</limit>
+    </disk_quota>
+    <file_size>
+      <enabled>yes</enabled>
+      <limit>10</limit>
+    </file_size>
+  </diff>
 </syscheck>
 ```
 
+> **Extending this to Windows agents later:** once WINAPP01 gets a Wazuh Agent in [`17`](./17-agent-deployment-all-vms.md), the same `whodata`/`realtime` pattern applies to Windows directories too (`C:\Windows\System32`, etc.), and FIM there can additionally watch **registry keys** (`<windows_registry>` entries) — a Windows-specific capability with no Linux equivalent, worth configuring specifically in that later document rather than assuming this Linux-focused config transfers as-is.
+
+Restart to apply:
 ```bash
 sudo systemctl restart wazuh-manager
 ```
 
-Trigger a test change:
+### Verify
+
+Trigger changes across both tiers to confirm each behaves as configured:
 ```bash
+# Tier 1 (real-time + whodata) — should generate an alert within seconds, not
+# waiting for the next scheduled scan
 sudo touch /etc/test-fim-file.txt
 sudo rm /etc/test-fim-file.txt
+
+# Tier 2 (scheduled only) — won't alert until the next scan cycle; confirmed
+# separately below rather than waited on live
+sudo touch /boot/test-fim-file.txt
+sudo rm /boot/test-fim-file.txt
 ```
-Check **Wazuh Dashboard → Integrity Monitoring** for the change event after the next `syscheck` scan.
+
+Check **Wazuh Dashboard → Integrity Monitoring** — the `/etc` change should appear almost immediately (real-time), and should show a **user and process**, not just a file path, confirming `whodata` actually captured attribution rather than falling back to plain FIM. The `/boot` change won't show up until the next `frequency` cycle (12 hours) or a forced scan:
+```bash
+sudo /var/ossec/bin/agent_control -R -u 000
+```
+
+Confirm the underlying rule fired correctly from the command line, rather than relying on the dashboard alone:
+```bash
+sudo grep "Integrity checksum changed" /var/ossec/logs/alerts/alerts.log | tail -5
+```
 
 ---
 
