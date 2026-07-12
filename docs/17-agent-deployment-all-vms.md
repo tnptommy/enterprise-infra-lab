@@ -298,12 +298,15 @@ Trigger Suricata traffic (same test approach as [`08`'s own verification](./08-w
 
 The second forward pointer, from [`15`](./15-log01-elasticsearch-logstash-kibana.md#step-14--configure-logstash) — WEB01 already has Filebeat installed for shipping Wazuh alerts (from earlier in this lab's history on WEB01, if applicable) or needs one now specifically for this. Point a Filebeat instance at LOG01's Logstash Beats input:
 
+**Use Filebeat 9.4.3 here, not the 7.10.2 pinned for MON01's own Filebeat in [`13`](./13-mon01-wazuh-manager-configuration.md#step-7--install-and-configure-filebeat).** That version was pinned specifically to work around a Bulk API incompatibility between Filebeat and OpenSearch/Wazuh Indexer — a problem that doesn't apply here, since this Filebeat instance ships to Logstash → genuine Elasticsearch on LOG01, not OpenSearch. The "requires the default distribution" check that forced the OSS repository workaround for MON01 also doesn't trigger here, since Elasticsearch **is** the default distribution — a plain, current Filebeat works normally against it. This matches the same reasoning already applied to Winlogbeat in [Step 8](#step-8--winlogbeat-on-windows-vms).
+
 On **WEB01**, if Filebeat isn't already installed for another purpose:
 ```bash
-sudo tee /etc/yum.repos.d/elastic-oss.repo << 'EOF'
-[elastic-oss-7.x]
-name=Elastic OSS repository for 7.x packages
-baseurl=https://artifacts.elastic.co/packages/oss-7.x/yum
+sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+sudo tee /etc/yum.repos.d/elastic.repo << 'EOF'
+[elastic-9.x]
+name=Elastic repository for 9.x packages
+baseurl=https://artifacts.elastic.co/packages/9.x/yum
 gpgcheck=1
 gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
 enabled=1
@@ -311,9 +314,8 @@ autorefresh=1
 type=rpm-md
 EOF
 
-sudo dnf install -y filebeat-7.10.2
+sudo dnf install -y filebeat-9.4.3
 ```
-Same OSS repository as [`13`'s Filebeat install](./13-mon01-wazuh-manager-configuration.md#step-7--install-and-configure-filebeat) — the reasoning there (avoiding the non-OSS distribution check) applies here too, even though this Filebeat instance talks to Logstash rather than directly to an Indexer.
 
 Configure a dedicated input/output specifically for Suricata → Logstash, separate from any Wazuh-alert-shipping Filebeat config that might already exist on this host:
 ```bash
@@ -345,7 +347,7 @@ Expect a non-zero count once Suricata has logged any traffic.
 
 Windows Event Log data (from WINAPP01, DC01, and CLIENT01) ships to the same Logstash pipeline on LOG01 as WEB01's Suricata data in [Step 7](#step-7--complete-the-suricata-to-logstash-integration) — same port, same Beats input, routed to a separate `winlogbeat-*` index by the `tags`-based conditional already built into that pipeline in [`15`'s Step 14](./15-log01-elasticsearch-logstash-kibana.md#step-14--configure-logstash).
 
-**Use Winlogbeat 9.4.3, not the 7.10.2 pinned for WEB01's Filebeat.** That older version was specifically required to work around a Bulk API incompatibility between Filebeat and OpenSearch/Wazuh Indexer (documented in [`13`'s Step 5](./13-mon01-wazuh-manager-configuration.md#step-5--install-and-configure-wazuh-indexer)) — a problem that doesn't exist here, since this pipeline ships to genuine Elasticsearch on LOG01, not OpenSearch. Elastic's own compatibility guidance is to match Beats to the Elasticsearch/Logstash version in use, so `9.4.3` is the correct choice for this integration specifically.
+**Use Winlogbeat 9.4.3** — same version as WEB01's Filebeat in [Step 7](#step-7--complete-the-suricata-to-logstash-integration), both matched to LOG01's actual Elasticsearch/Logstash version per Elastic's own compatibility guidance. Only MON01's own Filebeat in [`13`](./13-mon01-wazuh-manager-configuration.md#step-7--install-and-configure-filebeat) stays pinned to `7.10.2` — that one specifically talks to OpenSearch/Wazuh Indexer, which rejects newer Beats' Bulk API format, a problem unique to that one integration.
 
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
