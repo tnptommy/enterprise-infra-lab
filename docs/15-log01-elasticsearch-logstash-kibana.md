@@ -393,6 +393,14 @@ output {
       ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
       index => "winlogbeat-%{+YYYY.MM.dd}"
     }
+  } else if "iis" in [tags] {
+    elasticsearch {
+      hosts => ["https://192.168.10.50:9200"]
+      user => "elastic"
+      password => "Password-From-Step-12"
+      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      index => "iis-%{+YYYY.MM.dd}"
+    }
   } else {
     elasticsearch {
       hosts => ["https://192.168.10.50:9200"]
@@ -408,7 +416,7 @@ EOF
 sudo mkdir -p /var/log/logstash
 sudo chown -R logstash:logstash /opt/logstash /etc/logstash /var/log/logstash
 ```
-No Filebeat is actually pointed at port 5044 yet — this pipeline sits ready and idle until [`17`](./17-agent-deployment-all-vms.md) configures WEB01's Filebeat output (tagged `suricata`) and Winlogbeat on the Windows VMs (tagged `winlogbeat`) to ship here, fulfilling the integration [`08-web01-suricata-nids.md`](./08-web01-suricata-nids.md) originally noted as a forward pointer. A single Beats input on one port accepts connections from every Beat type simultaneously — the `tags`-based conditional above is what keeps their data separated into distinct indices rather than mixed together, and the `else` branch is a safety net catching anything that arrives untagged rather than silently dropping or misfiling it.
+No Filebeat is actually pointed at port 5044 yet — this pipeline sits ready and idle until [`17`](./17-agent-deployment-all-vms.md) configures WEB01's Filebeat output (tagged `suricata`), Winlogbeat on the Windows VMs (tagged `winlogbeat`), and WINAPP01's own Filebeat instance for IIS logs (tagged `iis`) to ship here, fulfilling the integration [`08-web01-suricata-nids.md`](./08-web01-suricata-nids.md) originally noted as a forward pointer. A single Beats input on one port accepts connections from every Beat type simultaneously — the `tags`-based conditional above is what keeps their data separated into distinct indices rather than mixed together, and the `else` branch is a safety net catching anything that arrives untagged rather than silently dropping or misfiling it.
 
 ---
 
