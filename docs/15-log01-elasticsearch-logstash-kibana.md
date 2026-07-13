@@ -371,9 +371,23 @@ sudo useradd --system -g logstash -d /opt/logstash -s /sbin/nologin logstash
 ```
 
 Create a pipeline that receives Filebeat input (from WEB01's Suricata data, once [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) configures that Filebeat instance to ship here) and writes to the local Elasticsearch:
+**Config path confirmed live: `/opt/logstash/config/conf.d/`, not `/etc/logstash/`.** Logstash's own default `pipelines.yml` (shipped inside the build, at `/opt/logstash/config/pipelines.yml`) points at `config/conf.d/*.conf` relative to its own home directory — not any system-wide `/etc/` path the way Elasticsearch and Kibana's configs work. Placing the pipeline file anywhere else means Logstash simply never loads it, with no obvious error explaining why.
+
+**Copy Elasticsearch's CA certificate into a location Logstash's own user can actually read — its source directory is locked down to the `elasticsearch` user/group only (`750` permissions), and Logstash runs as a separate `logstash` user with no access to it, confirmed live:**
 ```bash
-sudo mkdir -p /etc/logstash/conf.d
-sudo tee /etc/logstash/conf.d/suricata.conf << 'EOF'
+sudo mkdir -p /opt/logstash/config/certs
+sudo cp /opt/elasticsearch/config/certs/http_ca.crt /opt/logstash/config/certs/
+sudo chown -R logstash:logstash /opt/logstash/config/certs
+```
+
+**The build also ships a default example file at `config/conf.d/syslog.conf`** (a syslog input on port 5144, dumping to `stdout`) — since `pipelines.yml` globs every `*.conf` file in that directory into the same single `main` pipeline, leaving this example in place merges its input/output blocks together with the pipeline created below, mixing unrelated traffic between them. Remove it:
+```bash
+sudo rm -f /opt/logstash/config/conf.d/syslog.conf
+```
+
+```bash
+sudo mkdir -p /opt/logstash/config/conf.d
+sudo tee /opt/logstash/config/conf.d/suricata.conf << 'EOF'
 input {
   beats {
     port => 5044
@@ -386,7 +400,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "suricata-%{+YYYY.MM.dd}"
     }
   } else if "winlogbeat" in [tags] {
@@ -394,7 +408,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "winlogbeat-%{+YYYY.MM.dd}"
     }
   } else if "iis" in [tags] {
@@ -402,7 +416,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "iis-%{+YYYY.MM.dd}"
     }
   } else if "metricbeat" in [tags] {
@@ -410,7 +424,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "metricbeat-%{+YYYY.MM.dd}"
     }
   } else if "packetbeat" in [tags] {
@@ -418,7 +432,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "packetbeat-%{+YYYY.MM.dd}"
     }
   } else {
@@ -426,7 +440,7 @@ output {
       hosts => ["https://192.168.10.50:9200"]
       user => "elastic"
       password => "Password-From-Step-12"
-      ssl_certificate_authorities => ["/opt/elasticsearch/config/certs/http_ca.crt"]
+      ssl_certificate_authorities => ["/opt/logstash/config/certs/http_ca.crt"]
       index => "beats-unclassified-%{+YYYY.MM.dd}"
     }
   }
@@ -434,7 +448,7 @@ output {
 EOF
 
 sudo mkdir -p /var/log/logstash
-sudo chown -R logstash:logstash /opt/logstash /etc/logstash /var/log/logstash
+sudo chown -R logstash:logstash /opt/logstash /var/log/logstash
 ```
 No Filebeat is actually pointed at port 5044 yet — this pipeline sits ready and idle until [`17`](./17-agent-deployment-all-vms.md) configures WEB01's Filebeat output (tagged `suricata`), Winlogbeat on the Windows VMs (tagged `winlogbeat`), WINAPP01's own Filebeat instance for IIS logs (tagged `iis`), and Metricbeat/Packetbeat on WEB01 (tagged `metricbeat`/`packetbeat`) to ship here, fulfilling the integration [`08-web01-suricata-nids.md`](./08-web01-suricata-nids.md) originally noted as a forward pointer. A single Beats input on one port accepts connections from every Beat type simultaneously — the `tags`-based conditional above is what keeps their data separated into distinct indices rather than mixed together, and the `else` branch is a safety net catching anything that arrives untagged rather than silently dropping or misfiling it.
 
@@ -543,7 +557,7 @@ sudo groupadd --system kibana
 sudo useradd --system -g kibana -d /opt/kibana -s /sbin/nologin kibana
 ```
 
-Generate a self-signed certificate for the browser-facing side of Kibana — separate from the certificates Kibana already uses to talk *to* Elasticsearch:
+Generate a self-signed certificate for the browser-facing side of Kibana — separate from the certificates Kibana uses to talk *to* Elasticsearch:
 ```bash
 sudo mkdir -p /opt/kibana/certs
 sudo openssl req -x509 -nodes -days 825 \
@@ -551,6 +565,11 @@ sudo openssl req -x509 -nodes -days 825 \
   -keyout /opt/kibana/certs/kibana.key \
   -out /opt/kibana/certs/kibana.crt \
   -subj "/C=VN/O=CorpLab/CN=kibana.corp-lab.com.vn"
+```
+
+**Also copy Elasticsearch's own CA certificate into this same directory — the same permission problem confirmed live for Logstash in [Step 14](#step-14--configure-logstash) applies here too.** Elasticsearch's `config/certs/` directory is locked to `750` permissions for the `elasticsearch` user/group only; Kibana runs as its own separate `kibana` user with no access to it, so referencing that path directly in `kibana.yml` below would fail the same way Logstash's pipeline did:
+```bash
+sudo cp /opt/elasticsearch/config/certs/http_ca.crt /opt/kibana/certs/
 ```
 
 ```bash
@@ -565,7 +584,7 @@ server.ssl.key: /opt/kibana/certs/kibana.key
 elasticsearch.hosts: ["https://192.168.10.50:9200"]
 elasticsearch.username: "kibana_system"
 elasticsearch.password: "Password-Set-Below"
-elasticsearch.ssl.certificateAuthorities: ["/opt/elasticsearch/config/certs/http_ca.crt"]
+elasticsearch.ssl.certificateAuthorities: ["/opt/kibana/certs/http_ca.crt"]
 EOF
 
 sudo mkdir -p /var/log/kibana
