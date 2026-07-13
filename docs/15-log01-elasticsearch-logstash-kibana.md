@@ -348,12 +348,14 @@ Expect a JSON response describing the cluster, with `"tagline" : "You Know, for 
 cd ~
 git clone --depth 1 --branch v9.4.3 https://github.com/elastic/logstash.git
 cd logstash
-./gradlew assemble
+./gradlew assembleTarDistribution
 ```
 Logstash's build is JRuby-based on top of the JVM — expect this to be lighter than Elasticsearch's build but still take a meaningful amount of time.
 
+**`./gradlew assemble` alone isn't the right task here — confirmed the hard way.** It only compiles Logstash's core into a bare `.jar` (`build/libs/logstash-9.4.3.jar`), not a runnable distribution with `bin/`, `config/`, and the bundled JRuby runtime. `assembleTarDistribution` is the task that actually produces that full `.tar.gz` package, found by grepping this checked-out tree's own `build.gradle` for distribution-related task names (`grep -n "^task\|register(\"" build.gradle | grep -iE "tar|zip|dist"`) rather than guessing — the same lesson already learned with Prometheus's `consoles` directory and Grafana's `bin/linux/amd64` path in [`14`](./14-mon01-prometheus-grafana-monitoring.md).
+
 ```bash
-find build -maxdepth 3 -iname "logstash-9.4.3*" -type d 2>/dev/null
+find . -maxdepth 3 -iname "logstash-9.4.3*.tar.gz" 2>/dev/null
 ```
 
 ---
@@ -361,7 +363,8 @@ find build -maxdepth 3 -iname "logstash-9.4.3*" -type d 2>/dev/null
 ## Step 14 — Configure Logstash
 
 ```bash
-sudo cp -r <path-from-find-command-above> /opt/logstash
+sudo mkdir -p /opt/logstash
+sudo tar -xzf <path-from-find-command-above> -C /opt/logstash --strip-components=1
 
 sudo groupadd --system logstash
 sudo useradd --system -g logstash -d /opt/logstash -s /sbin/nologin logstash
