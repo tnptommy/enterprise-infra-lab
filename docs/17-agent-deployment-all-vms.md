@@ -33,11 +33,12 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 - [Step 7 — Complete the Suricata-to-Logstash integration](#step-7--complete-the-suricata-to-logstash-integration)
 - [Step 8 — Winlogbeat on Windows VMs](#step-8--winlogbeat-on-windows-vms)
 - [Step 9 — Filebeat on WINAPP01 for IIS logs](#step-9--filebeat-on-winapp01-for-iis-logs)
-- [Step 10 — node_exporter on Linux VMs](#step-10--node_exporter-on-linux-vms)
-- [Step 11 — windows_exporter on Windows VMs](#step-11--windows_exporter-on-windows-vms)
-- [Step 12 — Update Prometheus scrape targets](#step-12--update-prometheus-scrape-targets)
-- [Step 13 — Create Kibana Data Views](#step-13--create-kibana-data-views)
-- [Step 14 — Final verification checklist](#step-14--final-verification-checklist)
+- [Step 10 — Metricbeat and Packetbeat on WEB01](#step-10--metricbeat-and-packetbeat-on-web01)
+- [Step 11 — node_exporter on Linux VMs](#step-11--node_exporter-on-linux-vms)
+- [Step 12 — windows_exporter on Windows VMs](#step-12--windows_exporter-on-windows-vms)
+- [Step 13 — Update Prometheus scrape targets](#step-13--update-prometheus-scrape-targets)
+- [Step 14 — Create Kibana Data Views](#step-14--create-kibana-data-views)
+- [Step 15 — Final verification checklist](#step-15--final-verification-checklist)
 - [Next step](#next-step)
 
 ---
@@ -431,11 +432,83 @@ curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/iis-*/_count?p
 ```
 Expect a non-zero count once IIS has served any request — browsing to `http://web01.corp-lab.com.vn` or any WINAPP01-hosted site generates a log line immediately if none exists yet.
 
-Add a matching **Kibana Data View** in [Step 13](#step-13--create-kibana-data-views) (`iis-*`, same as `suricata-*` and `winlogbeat-*`) once this is confirmed flowing.
+Add a matching **Kibana Data View** in [Step 14](#step-14--create-kibana-data-views) (`iis-*`, same as `suricata-*` and `winlogbeat-*`) once this is confirmed flowing.
 
 ---
 
-## Step 10 — node_exporter on Linux VMs
+## Step 10 — Metricbeat and Packetbeat on WEB01
+
+Two more Beats, purely to practice getting different data types into Elasticsearch — same `9.4.3` version and same Logstash pipeline on LOG01 as everything else in this document, just two new source types. **Metricbeat** collects OS/service-level metrics (CPU, memory, disk); **Packetbeat** captures network traffic at the protocol level (HTTP requests, MySQL queries) — a genuinely different vantage point from Suricata's signature-based intrusion detection in [`08`](./08-web01-suricata-nids.md), since Packetbeat shows *what actually happened* at the protocol layer rather than *whether something matched a known-bad pattern*.
+
+> **Overlap with Zabbix/Prometheus is expected and fine here** — Metricbeat's system metrics genuinely duplicate what Zabbix Agent 2 ([Step 1](#step-1--zabbix-agent-2-from-source-on-linux-vms)) and node_exporter ([Step 11](#step-11--node_exporter-on-linux-vms)) already collect. The point of adding it isn't to replace either — it's to practice shipping another data type through this same Beats → Logstash → Elasticsearch pipeline, which is a different skill from configuring Zabbix or Prometheus itself.
+
+Run on **WEB01**:
+
+```bash
+sudo rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
+sudo tee /etc/yum.repos.d/elastic.repo << 'EOF'
+[elastic-9.x]
+name=Elastic repository for 9.x packages
+baseurl=https://artifacts.elastic.co/packages/9.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+autorefresh=1
+type=rpm-md
+EOF
+
+sudo dnf install -y metricbeat-9.4.3 packetbeat-9.4.3
+```
+
+Configure Metricbeat — the `system` module (CPU/memory/disk/network) is enabled by default, just needs pointing at Logstash instead of its default direct-to-Elasticsearch output:
+```bash
+sudo tee /etc/metricbeat/metricbeat.yml << 'EOF'
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+tags: ["metricbeat"]
+
+output.logstash:
+  hosts: ["192.168.10.50:5044"]
+EOF
+
+sudo metricbeat modules enable system
+sudo systemctl enable --now metricbeat
+```
+
+Configure Packetbeat to watch WEB01's actual traffic — HTTP (Apache, from [`07`](./07-web01-lamp-nginx-loadbalancer.md)) and MySQL (MariaDB, same document) on their standard ports:
+```bash
+sudo tee /etc/packetbeat/packetbeat.yml << 'EOF'
+packetbeat.interfaces.device: any
+
+packetbeat.protocols:
+  - type: http
+    ports: [80, 8080, 8000, 5000, 8002]
+  - type: mysql
+    ports: [3306]
+
+tags: ["packetbeat"]
+
+output.logstash:
+  hosts: ["192.168.10.50:5044"]
+EOF
+
+sudo systemctl enable --now packetbeat
+```
+
+Verify data is flowing — check on **LOG01**:
+```bash
+curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/metricbeat-*/_count?pretty"
+curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/packetbeat-*/_count?pretty"
+```
+Expect non-zero counts for both — Metricbeat generates data continuously on its own polling interval; Packetbeat needs actual traffic to WEB01 (an HTTP request or MySQL query) to have something to capture.
+
+Add matching **Kibana Data Views** in [Step 14](#step-14--create-kibana-data-views) (`metricbeat-*`, `packetbeat-*`) once confirmed flowing.
+
+---
+
+## Step 11 — node_exporter on Linux VMs
 
 Run on **WEB01**, **LOG01**, and **LOG02** — same binary, same systemd unit pattern as [`14`'s Step 5](./14-mon01-prometheus-grafana-monitoring.md#step-5--install-node_exporter-on-mon01):
 
@@ -475,7 +548,7 @@ sudo firewall-cmd --reload
 
 ---
 
-## Step 11 — windows_exporter on Windows VMs
+## Step 12 — windows_exporter on Windows VMs
 
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
@@ -496,13 +569,13 @@ New-NetFirewallRule -DisplayName "windows_exporter (MON01 only)" -Direction Inbo
 
 ---
 
-## Step 12 — Update Prometheus scrape targets
+## Step 13 — Update Prometheus scrape targets
 
 On **MON01**:
 ```bash
 sudo vi /etc/prometheus/prometheus.yml
 ```
-Extend the `node_exporter` job (created in [`14`'s Step 3](./14-mon01-prometheus-grafana-monitoring.md#step-3--configure-prometheus) with only MON01 itself as a target) to include every VM from [Step 10](#step-10--node_exporter-on-linux-vms), and add a new job for the Windows VMs from [Step 11](#step-11--windows_exporter-on-windows-vms):
+Extend the `node_exporter` job (created in [`14`'s Step 3](./14-mon01-prometheus-grafana-monitoring.md#step-3--configure-prometheus) with only MON01 itself as a target) to include every VM from [Step 11](#step-11--node_exporter-on-linux-vms), and add a new job for the Windows VMs from [Step 12](#step-12--windows_exporter-on-windows-vms):
 ```yaml
   - job_name: 'node_exporter'
     static_configs:
@@ -544,9 +617,9 @@ curl -s http://localhost:9090/api/v1/targets | python3 -m json.tool | grep -A2 '
 
 ---
 
-## Step 13 — Create Kibana Data Views
+## Step 14 — Create Kibana Data Views
 
-Data flowing into Elasticsearch (confirmed in [Step 7](#step-7--complete-the-suricata-to-logstash-integration), [Step 8](#step-8--winlogbeat-on-windows-vms), and [Step 9](#step-9--filebeat-on-winapp01-for-iis-logs)) isn't automatically visible in Kibana — a **Data View** (Kibana's current term for what was called an "index pattern" in older versions) has to be created first, telling Kibana which indices to query and which field holds the timestamp.
+Data flowing into Elasticsearch (confirmed in [Step 7](#step-7--complete-the-suricata-to-logstash-integration), [Step 8](#step-8--winlogbeat-on-windows-vms), [Step 9](#step-9--filebeat-on-winapp01-for-iis-logs), and [Step 10](#step-10--metricbeat-and-packetbeat-on-web01)) isn't automatically visible in Kibana — a **Data View** (Kibana's current term for what was called an "index pattern" in older versions) has to be created first, telling Kibana which indices to query and which field holds the timestamp.
 
 On **LOG01**'s Kibana (`https://kibana.corp-lab.com.vn:5601` — or LOG01's IP directly if [`06`'s CNAME](./06-dc01-active-directory-dns-dhcp.md#step-5--configure-dns) hasn't been created yet):
 
@@ -554,21 +627,25 @@ On **LOG01**'s Kibana (`https://kibana.corp-lab.com.vn:5601` — or LOG01's IP d
 2. **Name**: `Suricata`. **Index pattern**: `suricata-*`. **Timestamp field**: `@timestamp`. **Save data view to Kibana**.
 3. Repeat: **Name**: `Winlogbeat`. **Index pattern**: `winlogbeat-*`. **Timestamp field**: `@timestamp`.
 4. Repeat: **Name**: `IIS`. **Index pattern**: `iis-*`. **Timestamp field**: `@timestamp`.
+5. Repeat: **Name**: `Metricbeat`. **Index pattern**: `metricbeat-*`. **Timestamp field**: `@timestamp`.
+6. Repeat: **Name**: `Packetbeat`. **Index pattern**: `packetbeat-*`. **Timestamp field**: `@timestamp`.
 
-Verify all three are actually browsable:
+Verify all five are actually browsable:
 
-5. ☰ menu → **Discover** → select the `Suricata` data view from the dropdown (top left) — expect to see WEB01's Suricata events, most recent first.
-6. Switch the dropdown to `Winlogbeat` — expect to see Windows Event Log entries from WINAPP01, DC01, and CLIENT01.
-7. Switch the dropdown to `IIS` — expect to see WINAPP01's IIS access log entries.
+7. ☰ menu → **Discover** → select the `Suricata` data view from the dropdown (top left) — expect to see WEB01's Suricata events, most recent first.
+8. Switch the dropdown to `Winlogbeat` — expect to see Windows Event Log entries from WINAPP01, DC01, and CLIENT01.
+9. Switch the dropdown to `IIS` — expect to see WINAPP01's IIS access log entries.
+10. Switch the dropdown to `Metricbeat` — expect to see WEB01's system metrics.
+11. Switch the dropdown to `Packetbeat` — expect to see captured HTTP/MySQL transactions from WEB01.
 
-> If the Data View creation screen shows no matching indices for any pattern, that means no index exists yet at the Elasticsearch level — this is a data-pipeline problem (Filebeat/Winlogbeat → Logstash → Elasticsearch), not a Kibana problem. Confirm directly against Elasticsearch before troubleshooting Kibana further:
+> If the Data View creation screen shows no matching indices for any pattern, that means no index exists yet at the Elasticsearch level — this is a data-pipeline problem (Filebeat/Winlogbeat/Metricbeat/Packetbeat → Logstash → Elasticsearch), not a Kibana problem. Confirm directly against Elasticsearch before troubleshooting Kibana further:
 > ```bash
-> curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/_cat/indices?v" | grep -E "suricata|winlogbeat|iis"
+> curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/_cat/indices?v" | grep -E "suricata|winlogbeat|iis|metricbeat|packetbeat"
 > ```
 
 ---
 
-## Step 14 — Final verification checklist
+## Step 15 — Final verification checklist
 
 1. **Every VM shows a healthy Zabbix Agent 2** (repeat the check from [Step 3](#step-3--confirm-zabbix-host-groups-populated-correctly)).
 
@@ -587,17 +664,19 @@ Expect all six agents listed as `Active`.
 
 6. **IIS-to-Logstash integration produces indexed documents** (repeat the check from [Step 9](#step-9--filebeat-on-winapp01-for-iis-logs)).
 
-7. **Every Prometheus target is healthy** (repeat the check from [Step 12](#step-12--update-prometheus-scrape-targets)).
+7. **Metricbeat/Packetbeat-to-Logstash integration produces indexed documents** (repeat the check from [Step 10](#step-10--metricbeat-and-packetbeat-on-web01)).
 
-8. **Kibana Data Views are browsable in Discover** (repeat the check from [Step 13](#step-13--create-kibana-data-views)).
+8. **Every Prometheus target is healthy** (repeat the check from [Step 13](#step-13--update-prometheus-scrape-targets)).
 
-9. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
+9. **Kibana Data Views are browsable in Discover** (repeat the check from [Step 14](#step-14--create-kibana-data-views)).
+
+10. **Firewall rules on the Linux exporters are restricted to MON01's IP, not open to the whole network** — spot-check one:
 ```bash
 # On WEB01
 sudo firewall-cmd --list-rich-rules
 ```
 
-If all nine checks pass, every VM built so far reports into both monitoring ecosystems (Zabbix and Wazuh) and the Prometheus/Grafana metrics stack, and the three integrations left as forward pointers earlier in this lab (Suricata-to-Wazuh, Suricata-to-Logstash, IIS-to-Logstash) are now genuinely working end-to-end rather than just configured-and-untested.
+If all ten checks pass, every VM built so far reports into both monitoring ecosystems (Zabbix and Wazuh), the Prometheus/Grafana metrics stack, and the Elastic Stack via five different Beats (Filebeat, Winlogbeat, Metricbeat, Packetbeat) — the forward pointers left earlier in this lab (Suricata-to-Wazuh, Suricata-to-Logstash, IIS-to-Logstash) are now genuinely working end-to-end rather than just configured-and-untested.
 
 ---
 
