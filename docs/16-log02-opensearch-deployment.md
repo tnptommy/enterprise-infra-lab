@@ -204,7 +204,7 @@ Expect a long build (though the earlier build of Wazuh Indexer in [`13`](./13-mo
 ```bash
 find distribution/archives/linux-tar/build/distributions -iname "*.tar.gz"
 ```
-Unlike the Wazuh Indexer build, this should already include the default security plugin bundled in — verify once installed in [Step 12](#step-12--initialize-opensearch-security) rather than assuming, but no separate plugin-assembly stage is expected to be needed here.
+**Correction to an assumption made earlier in this document: the security plugin is *not* bundled into this build, confirmed the hard way.** `plugins/` comes back completely empty after installing — unlike a Wazuh Indexer *package* (which bundles it during the official assemble pipeline), plain OpenSearch built directly from this repo's own `linux-tar` task ships as a bare core only. The fix is simpler than Wazuh's multi-repo assembly, though: `opensearch-security` is published as a standard plugin on Maven Central and installs via the normal plugin mechanism — covered in [Step 12](#step-12--initialize-opensearch-security).
 
 ---
 
@@ -274,11 +274,23 @@ sudo systemctl status opensearch
 
 ## Step 12 — Initialize OpenSearch security
 
-Confirm the security plugin is actually present before assuming the build bundled it correctly:
+**Install the security plugin — it isn't bundled into the plain `linux-tar` build**, per the correction in [Step 9](#step-9--build-opensearch-from-source). It's published on Maven Central and installs through OpenSearch's normal plugin mechanism, the same tool used to install any other OpenSearch plugin:
+```bash
+cd /opt/opensearch
+sudo ./bin/opensearch-plugin install --batch org.opensearch.plugin:opensearch-security:3.7.0.0
+```
+> If this specific version string doesn't resolve (plugin release versions can lag slightly behind OpenSearch core's own version — check `https://repo1.maven.org/maven2/org/opensearch/plugin/opensearch-security/` directly for what's actually published if `3.7.0.0` isn't there by the time you're reading this), that's a real possibility worth checking for rather than assuming the exact version always lines up.
+
+Installing `opensearch-security` prints a warning about a missing `workload-management` dependency — install that too, using its simpler official install syntax (no explicit version needed; the plugin installer resolves the matching one on its own, and note this artifact's name has **no** `opensearch-` prefix, unlike `opensearch-security`):
+```bash
+sudo ./bin/opensearch-plugin install --batch workload-management
+```
+
+Confirm both installed:
 ```bash
 ls /opt/opensearch/plugins/
 ```
-Expect `opensearch-security` in the list.
+Expect `opensearch-security` and `workload-management`.
 
 ```bash
 sudo /opt/opensearch/plugins/opensearch-security/tools/install_demo_configuration.sh -y
