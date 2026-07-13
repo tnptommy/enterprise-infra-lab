@@ -360,14 +360,32 @@ cat .nvmrc
 ```
 
 ```bash
-which nvm || (curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.bashrc)
+which nvm || curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+```
+**`source ~/.bashrc` alone isn't reliably enough to load `nvm` into the current shell right after a fresh install — confirmed the hard way** (`nvm: command not found` even immediately after the installer finished). Load it explicitly instead, exactly as the installer's own output suggests:
+```bash
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm --version
+```
 
+```bash
 nvm install "$(cat .nvmrc)"
 nvm use "$(cat .nvmrc)"
 node --version
 ```
 
 ```bash
+npm install -g yarn
+yarn --version
+```
+
+```bash
+yarn osd bootstrap
+```
+Same SSL/network transient-failure pattern as Grafana's `yarn osd bootstrap` in [`14`](./14-mon01-prometheus-grafana-monitoring.md#step-7--build-grafana-from-source) can happen here too — delete `node_modules` and retry if it fails partway through:
+```bash
+rm -rf node_modules
 yarn osd bootstrap
 ```
 
