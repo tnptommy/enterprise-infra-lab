@@ -292,25 +292,25 @@ ls /opt/opensearch/plugins/
 ```
 Expect `opensearch-security` and `workload-management`.
 
+**Set the admin password before running the install script — this OpenSearch version requires it upfront, rather than defaulting to a demo password you change afterward.** The tools also need their execute bit set explicitly; a Maven-installed plugin doesn't set this the way a package install would:
 ```bash
-sudo /opt/opensearch/plugins/opensearch-security/tools/install_demo_configuration.sh -y
-```
-This installs demo certificates and a default `admin`/`admin`-equivalent setup suitable for this lab — change the actual passwords next:
-```bash
-sudo /opt/opensearch/plugins/opensearch-security/tools/hash.sh -p 'Your-New-Strong-Password'
-```
-Use the resulting hash to update the `admin` user's password in `/opt/opensearch/config/opensearch-security/internal_users.yml`, then apply it:
-```bash
-sudo /opt/opensearch/plugins/opensearch-security/tools/securityadmin.sh \
-  -cd /opt/opensearch/config/opensearch-security/ \
-  -icl -nhnv \
-  -cacert /opt/opensearch/config/root-ca.pem \
-  -cert /opt/opensearch/config/kirk.pem \
-  -key /opt/opensearch/config/kirk-key.pem
-```
-(`kirk` is the demo admin certificate's default name from `install_demo_configuration.sh` — matches whatever that script actually generated; confirm with `ls /opt/opensearch/config/*.pem` if the filenames differ.)
+sudo chmod +x /opt/opensearch/plugins/opensearch-security/tools/*.sh
 
-Copy the new `admin` password into [KeePass](./03-remote-access-tooling-setup.md#keepass) under a new `LOG02_10.51` group.
+export OPENSEARCH_INITIAL_ADMIN_PASSWORD='Your-Strong-Password-Here'
+/opt/opensearch/plugins/opensearch-security/tools/install_demo_configuration.sh -y
+```
+Without `OPENSEARCH_INITIAL_ADMIN_PASSWORD` set, this fails with `No custom admin password found` rather than falling back to a demo `admin`/`admin` credential — a deliberate hardening change versus older OpenSearch versions. Copy this password into [KeePass](./03-remote-access-tooling-setup.md#keepass) under a new `LOG02_10.51` group, entry "OpenSearch admin", immediately — this is the real `admin` password, not a placeholder to be changed later.
+
+The script itself prints the exact `securityadmin.sh` command needed next, including the actual certificate filenames it generated — run what it prints rather than assuming the filenames below match exactly:
+```bash
+sudo "/opt/opensearch/plugins/opensearch-security/tools/securityadmin.sh" \
+  -cd "/opt/opensearch/config/opensearch-security" \
+  -icl \
+  -key "/opt/opensearch/config/kirk-key.pem" \
+  -cert "/opt/opensearch/config/kirk.pem" \
+  -cacert "/opt/opensearch/config/root-ca.pem" \
+  -nhnv
+```
 
 Verify:
 ```bash
