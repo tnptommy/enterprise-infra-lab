@@ -301,7 +301,7 @@ export OPENSEARCH_INITIAL_ADMIN_PASSWORD='Your-Strong-Password-Here'
 ```
 Without `OPENSEARCH_INITIAL_ADMIN_PASSWORD` set, this fails with `No custom admin password found` rather than falling back to a demo `admin`/`admin` credential — a deliberate hardening change versus older OpenSearch versions. Copy this password into [KeePass](./03-remote-access-tooling-setup.md#keepass) under a new `LOG02_10.51` group, entry "OpenSearch admin", immediately — this is the real `admin` password, not a placeholder to be changed later.
 
-The script itself prints the exact `securityadmin.sh` command needed next, including the actual certificate filenames it generated — run what it prints rather than assuming the filenames below match exactly:
+The script itself prints the exact `securityadmin.sh` command needed next, including the actual certificate filenames it generated — run what it prints rather than assuming the filenames below match exactly. **Add `-h`/`-p` explicitly, pointing at this VM's actual IP, not the default `localhost`** — `network.host: 192.168.10.51` in [Step 10](#step-10--configure-opensearch) makes OpenSearch bind only that specific address, not `127.0.0.1`/`localhost` as well, so the tool's default connection target (`localhost:9200`) fails with a misleadingly generic `Seems there is no OpenSearch running` error even though the cluster is actually healthy and reachable — confirmed the hard way by checking `ss -tlnp` and finding the listening socket bound only to the real IP:
 ```bash
 sudo "/opt/opensearch/plugins/opensearch-security/tools/securityadmin.sh" \
   -cd "/opt/opensearch/config/opensearch-security" \
@@ -309,8 +309,25 @@ sudo "/opt/opensearch/plugins/opensearch-security/tools/securityadmin.sh" \
   -key "/opt/opensearch/config/kirk-key.pem" \
   -cert "/opt/opensearch/config/kirk.pem" \
   -cacert "/opt/opensearch/config/root-ca.pem" \
-  -nhnv
+  -nhnv \
+  -h 192.168.10.51 \
+  -p 9200
 ```
+> A handful of `ERROR`/exception stack traces (`ClosedSelectorException`, `ConcurrentModificationException`) printed *after* `Done with success` are harmless connection-pool cleanup noise as the tool exits — not a sign anything actually failed, as long as `Done with success` appeared first.
+
+> **If OpenSearch itself crashes on startup with `NoClassDefFoundError: org/bouncycastle/jcajce/provider/BouncyCastleFipsProvider`** (checked via `sudo tail -f /var/log/opensearch/<cluster-name>.log` after a `systemctl restart opensearch`), this means the Maven-based plugin install in this step didn't pull in every transitive dependency the way a full package install would — specifically the BouncyCastle FIPS crypto JARs `opensearch-security` needs. Confirmed the hard way: three JARs were missing and had to be added manually. Two were available directly from this repo's own build output (adjust the path if your `OpenSearch` checkout lives somewhere other than `~/OpenSearch`):
+> ```bash
+> sudo cp ~/OpenSearch/distribution/archives/linux-tar/build/install/opensearch-*/lib/tools/plugin-cli/bc-fips-2.1.2.jar /opt/opensearch/plugins/opensearch-security/
+> ```
+> The other two weren't present anywhere in the built tree and needed downloading directly from Maven Central — check `~/OpenSearch/libs/ssl-config/licenses/*.sha1` filenames for the exact version numbers actually expected (checksums are committed there even when the JARs themselves aren't bundled) rather than guessing:
+> ```bash
+> cd /opt/opensearch/plugins/opensearch-security/
+> sudo curl -O https://repo1.maven.org/maven2/org/bouncycastle/bcutil-fips/2.1.4/bcutil-fips-2.1.4.jar
+> sudo curl -O https://repo1.maven.org/maven2/org/bouncycastle/bcpkix-fips/2.1.9/bcpkix-fips-2.1.9.jar
+> ```
+> Also confirm the plugin's shell scripts are actually executable if you haven't already followed this step's earlier `chmod +x` — a Maven-installed plugin doesn't set this the way a package install does, and a missing execute bit produces a plain `command not found` that has nothing to do with the path being wrong.
+>
+> Restart OpenSearch after adding any of these JARs before retrying `securityadmin.sh`.
 
 Verify:
 ```bash
