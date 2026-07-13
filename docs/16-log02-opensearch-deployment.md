@@ -420,11 +420,24 @@ sudo useradd --system -g opensearch-dashboards -d /opt/opensearch-dashboards -s 
 sudo cp /opt/opensearch/config/root-ca.pem /opt/opensearch-dashboards/config/
 ```
 
+Generate a self-signed certificate for the browser-facing side of Dashboards — separate from the certificate copied above, which is for Dashboards' own connection *to* OpenSearch:
+```bash
+sudo mkdir -p /opt/opensearch-dashboards/certs
+sudo openssl req -x509 -nodes -days 825 \
+  -newkey rsa:2048 \
+  -keyout /opt/opensearch-dashboards/certs/dashboards.key \
+  -out /opt/opensearch-dashboards/certs/dashboards.crt \
+  -subj "/C=VN/O=CorpLab/CN=opensearch.corp-lab.com.vn"
+```
+
 ```bash
 sudo tee /opt/opensearch-dashboards/config/opensearch_dashboards.yml << 'EOF'
 server.host: "0.0.0.0"
 server.port: 5601
 server.name: "log02"
+server.ssl.enabled: true
+server.ssl.certificate: /opt/opensearch-dashboards/certs/dashboards.crt
+server.ssl.key: /opt/opensearch-dashboards/certs/dashboards.key
 
 opensearch.hosts: ["https://192.168.10.51:9200"]
 opensearch.ssl.verificationMode: certificate
@@ -466,7 +479,7 @@ sudo systemctl status opensearch-dashboards
 
 Verify:
 ```bash
-curl -s http://localhost:5601/api/status | python3 -m json.tool
+curl -sk https://localhost:5601/api/status | python3 -m json.tool
 ```
 
 ---
@@ -553,7 +566,7 @@ Expect `green` or `yellow`.
 
 3. **OpenSearch Dashboards reachable:**
 ```bash
-curl -s http://localhost:5601/api/status | python3 -m json.tool
+curl -sk https://localhost:5601/api/status | python3 -m json.tool
 ```
 
 4. **DNS resolves:**

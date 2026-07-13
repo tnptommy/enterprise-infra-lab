@@ -527,11 +527,24 @@ sudo groupadd --system kibana
 sudo useradd --system -g kibana -d /opt/kibana -s /sbin/nologin kibana
 ```
 
+Generate a self-signed certificate for the browser-facing side of Kibana — separate from the certificates Kibana already uses to talk *to* Elasticsearch:
+```bash
+sudo mkdir -p /opt/kibana/certs
+sudo openssl req -x509 -nodes -days 825 \
+  -newkey rsa:2048 \
+  -keyout /opt/kibana/certs/kibana.key \
+  -out /opt/kibana/certs/kibana.crt \
+  -subj "/C=VN/O=CorpLab/CN=kibana.corp-lab.com.vn"
+```
+
 ```bash
 sudo tee /opt/kibana/config/kibana.yml << 'EOF'
 server.host: "0.0.0.0"
 server.port: 5601
 server.name: "log01"
+server.ssl.enabled: true
+server.ssl.certificate: /opt/kibana/certs/kibana.crt
+server.ssl.key: /opt/kibana/certs/kibana.key
 
 elasticsearch.hosts: ["https://192.168.10.50:9200"]
 elasticsearch.username: "kibana_system"
@@ -576,7 +589,7 @@ sudo systemctl status kibana
 
 Verify:
 ```bash
-curl -s http://localhost:5601/api/status | python3 -m json.tool
+curl -sk https://localhost:5601/api/status | python3 -m json.tool
 ```
 Expect `"level": "available"` for the overall status.
 
@@ -689,7 +702,7 @@ Expect `"status": "green"` or `"yellow"` (yellow is normal for a single-node dep
 
 3. **Kibana reachable and reporting healthy:**
 ```bash
-curl -s http://localhost:5601/api/status | python3 -m json.tool
+curl -sk https://localhost:5601/api/status | python3 -m json.tool
 ```
 
 4. **Logstash's pipeline loaded without error** (repeat the check from [Step 15](#step-15--create-the-logstash-systemd-service)).
