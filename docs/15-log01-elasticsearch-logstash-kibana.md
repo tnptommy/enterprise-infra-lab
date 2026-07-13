@@ -226,7 +226,8 @@ Go is not needed anywhere in this document (unlike [`14`](./14-mon01-prometheus-
 Redirect Gradle's build cache to the data disk **before** building anything — Elasticsearch's dependency tree is large enough that this matters as much here as it did for Grafana in [`14`](./14-mon01-prometheus-grafana-monitoring.md#step-1--install-go):
 ```bash
 mkdir -p /mnt/data/gradle-cache
-echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties 2>/dev/null || (mkdir -p ~/.gradle && echo "org.gradle.caching=true" > ~/.gradle/gradle.properties)
+mkdir -p ~/.gradle
+echo "org.gradle.caching=true" >> ~/.gradle/gradle.properties
 export GRADLE_USER_HOME=/mnt/data/gradle-cache
 echo 'export GRADLE_USER_HOME=/mnt/data/gradle-cache' >> ~/.bashrc
 ```
