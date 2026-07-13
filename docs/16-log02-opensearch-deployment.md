@@ -397,6 +397,7 @@ Confirm the output — check rather than assume:
 ```bash
 find target -maxdepth 1 -iname "*.tar.gz" 2>/dev/null
 ```
+Expect **four** archives despite the `--linux` flag (`linux-x64`, `linux-arm64`, `darwin-x64`, `darwin-arm64`) — this build target still produces all supported platforms regardless of that flag. Use the `linux-x64` one in [Step 14](#step-14--configure-opensearch-dashboards).
 
 ---
 
@@ -408,10 +409,15 @@ exit
 
 ```bash
 sudo mkdir -p /opt/opensearch-dashboards
-sudo tar -xzf /home/builder/OpenSearch-Dashboards/target/<confirmed-filename> -C /opt/opensearch-dashboards --strip-components=1
+sudo tar -xzf /home/builder/OpenSearch-Dashboards/target/opensearch-dashboards-3.7.0-SNAPSHOT-linux-x64.tar.gz -C /opt/opensearch-dashboards --strip-components=1
 
 sudo groupadd --system opensearch-dashboards
 sudo useradd --system -g opensearch-dashboards -d /opt/opensearch-dashboards -s /sbin/nologin opensearch-dashboards
+```
+
+**Copy the CA certificate into Dashboards' own config directory first — the config below references it, and skipping this step causes Dashboards to fail connecting to OpenSearch with `ConnectionError: unable to verify the first certificate`, confirmed live:**
+```bash
+sudo cp /opt/opensearch/config/root-ca.pem /opt/opensearch-dashboards/config/
 ```
 
 ```bash
@@ -422,6 +428,7 @@ server.name: "log02"
 
 opensearch.hosts: ["https://192.168.10.51:9200"]
 opensearch.ssl.verificationMode: certificate
+opensearch.ssl.certificateAuthorities: ["/opt/opensearch-dashboards/config/root-ca.pem"]
 opensearch.username: "kibanaserver"
 opensearch.password: "kibanaserver"
 opensearch.requestHeadersWhitelist: ["securitytenant","Authorization"]
