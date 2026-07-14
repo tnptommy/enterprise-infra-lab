@@ -165,11 +165,9 @@ set vcpkg="C:\Zabbix\x64\x64-mingw-static"
 :: Linker flag needed for the Crypt32 library:
 SET CGO_LDFLAGS="-lCrypt32"
 
-mingw32-make GOFLAGS="-buildvcs=false" ARCH=AMD64 ^
-    PCRE2="%vcpkg%" ^
-    OPENSSL="%vcpkg%" ^
-    all
+mingw32-make GOFLAGS="-buildvcs=false" ARCH=AMD64 PCRE2=%vcpkg% OPENSSL=%vcpkg% all
 ```
+> **Don't wrap `%vcpkg%` in an extra pair of quotes** (`PCRE2="%vcpkg%"`) — the `vcpkg` variable's own `set` line already includes the quotes as part of its value, so referencing it as `%vcpkg%` alone already expands correctly to `"C:\Zabbix\x64\x64-mingw-static"`. Adding another layer produces a malformed doubled-quote value that breaks the build — confirmed by actually hitting this while working through the build live. This command must also be run **while standing in `build\mingw` specifically**, not the Zabbix source root — the Makefile's relative paths only resolve correctly from that exact directory.
 
 Compile:
 ```
@@ -226,28 +224,54 @@ Confirm all six show a green "ZBX" icon (not red) within a couple of minutes.
 
 ## Step 4 — Wazuh Agent on Linux VMs
 
+Same source and build pattern as MON01's Wazuh Manager in [`13`](./13-mon01-wazuh-manager-configuration.md#step-2--build-wazuh-manager-from-source) — same repo, same version (`v4.14.6`), just `TARGET=agent` instead of `TARGET=server`.
+
 Run on **WEB01**, **LOG01**, and **LOG02**:
 
 ```bash
-sudo rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
-sudo WAZUH_MANAGER="192.168.10.40" WAZUH_AGENT_NAME="<WEB01_10.21, LOG01_10.50, or LOG02_10.51 — whichever this VM actually is>" dnf install -y https://packages.wazuh.com/4.x/yum/wazuh-agent-4.14.6-1.x86_64.rpm
-```
-Setting `WAZUH_AGENT_NAME` here matters — without it, Wazuh defaults to the endpoint's bare OS hostname (`WEB01`, not `WEB01_10.21`), which would leave this one tool inconsistent with the `HOSTNAME_lastTwoOctets` naming every other monitoring tool in this lab uses (Zabbix, Prometheus, Elasticsearch, OpenSearch).
+sudo dnf groupinstall -y "Development Tools"
+sudo dnf install -y cmake gcc gcc-c++ make automake autoconf libtool \
+    openssl openssl-devel policycoreutils-python-utils procps-ng git curl wget \
+    libstdc++-static
 
-Configure it to point at MON01:
-```bash
-sudo sed -i "s/MANAGER_IP/192.168.10.40/" /var/ossec/etc/ossec.conf
+cd ~
+git clone --branch v4.14.6 --depth 1 https://github.com/wazuh/wazuh.git wazuh-agent-src
+cd wazuh-agent-src/src
+
+make deps TARGET=agent
+make -j$(nproc) TARGET=agent
 ```
-Or, if that placeholder isn't present in this package's default config, edit directly:
+
+Run the installer from the top of the extracted source tree (not `src/`):
 ```bash
-sudo vi /var/ossec/etc/ossec.conf
+cd ~/wazuh-agent-src
+sudo ./install
 ```
-Confirm the `<client><server><address>` block reads `192.168.10.40`.
+This launches the same interactive wizard as the Manager build, with different choices this time:
+1. Language: `en`.
+2. Confirm you've read the notice → **Enter**.
+3. **2. Install Wazuh agent** (not manager, this time).
+4. Wazuh server IP/address: `192.168.10.40`.
+5. Accept the default installation prefix (`/var/ossec` — same 4.x path convention as the Manager in [`13`](./13-mon01-wazuh-manager-configuration.md)).
+6. Set the **agent name**: `<WEB01_10.21, LOG01_10.50, or LOG02_10.51 — whichever this VM actually is>`, matching this lab's `HOSTNAME_lastTwoOctets` convention used consistently across every monitoring tool.
+7. Accept defaults for remaining prompts → **Enter** through them.
+8. Wait for compilation and installation to complete.
+
+Confirm it built and installed correctly:
+```bash
+sudo /var/ossec/bin/wazuh-control status
+```
+(Expect it to report as not running yet — this just confirms the binaries exist.)
 
 ```bash
 sudo systemctl enable --now wazuh-agent
 sudo firewall-cmd --permanent --add-port=1514/tcp
 sudo firewall-cmd --reload
+```
+
+Clean up the source tree once confirmed working, same disk-hygiene lesson as every other from-source build in this lab:
+```bash
+rm -rf ~/wazuh-agent-src
 ```
 
 ---
