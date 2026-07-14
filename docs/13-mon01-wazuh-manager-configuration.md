@@ -238,6 +238,16 @@ grep -A2 "cluster.initial_master_nodes" /etc/wazuh-indexer/opensearch.yml
 ```
 Expect `node.name` (a few lines above) and the single entry under `cluster.initial_master_nodes` to match — both should read `"node-1"`, matching MON01 as the only node in this deployment.
 
+**Rename `node.name` to match this lab's `HOSTNAME_lastTwoOctets` convention** (`MON01_10.40`, matching the VMware Library name used throughout this lab) rather than leaving the generic `node-1` default — `cluster.initial_master_nodes` must be updated to the exact same value, or the single-node cluster won't bootstrap correctly on the next restart:
+```bash
+sudo sed -i 's/node\.name: .*/node.name: "MON01_10.40"/' /etc/wazuh-indexer/opensearch.yml
+sudo sed -i 's/- "node-1"/- "MON01_10.40"/' /etc/wazuh-indexer/opensearch.yml
+grep -A3 "cluster.initial_master_nodes\|^node.name" /etc/wazuh-indexer/opensearch.yml
+```
+Using `sed 's/key: .*/key: value/'` here (replacing everything after the colon) rather than a literal find-and-replace on the old value specifically — the latter is not idempotent and silently produces something like `MON01_10.40_10.40` if the substitution ever runs twice against an already-updated file, a mistake made live while working through this exact change.
+
+The certificate files themselves (`node-1.pem`/`node-1-key.pem`, copied in this same step) don't need renaming to match — the certificate's identity is tied to its Distinguished Name (`plugins.security.nodes_dn` in this same config), not to `node.name`, so this rename is purely cosmetic/organizational and doesn't require regenerating certificates.
+
 **Add `compatibility.override_main_response_version: true`.** This isn't optional if Filebeat (a genuine Elastic Beats client, not an OpenSearch-native tool) will ever successfully ship data to this Indexer — without it, two separate incompatibilities surface between Filebeat 7.10.2 and OpenSearch 2.19.5 (the base this Indexer build is on):
 1. Filebeat's non-OSS distribution check fails outright (`Filebeat requires the default distribution of Elasticsearch`) — addressed separately in [Step 7](#step-7--install-and-configure-filebeat) by using the OSS repository instead.
 2. Even with OSS Filebeat, its Bulk API client still includes a legacy `_type` field in request metadata (a concept Elasticsearch deprecated in 7.x and OpenSearch removed entirely in 2.0+) — OpenSearch rejects these requests outright with `illegal_argument_exception: ... unknown parameter [_type]`, silently dropping every event Filebeat tries to ship, with no index ever appearing on the Indexer side despite Filebeat's own logs showing no obvious error unless checked closely.

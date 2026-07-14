@@ -270,7 +270,7 @@ sudo chown elasticsearch:elasticsearch /mnt/data/elasticsearch
 ```bash
 sudo tee /opt/elasticsearch/config/elasticsearch.yml << 'EOF'
 cluster.name: corp-lab-logs
-node.name: log01
+node.name: log01_10.50
 path.data: /mnt/data/elasticsearch
 path.logs: /var/log/elasticsearch
 network.host: 192.168.10.50
@@ -576,7 +576,7 @@ sudo cp /opt/elasticsearch/config/certs/http_ca.crt /opt/kibana/certs/
 sudo tee /opt/kibana/config/kibana.yml << 'EOF'
 server.host: "0.0.0.0"
 server.port: 5601
-server.name: "log01"
+server.name: "log01_10.50"
 server.ssl.enabled: true
 server.ssl.certificate: /opt/kibana/certs/kibana.crt
 server.ssl.key: /opt/kibana/certs/kibana.key

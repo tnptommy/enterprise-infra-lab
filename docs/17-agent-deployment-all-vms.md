@@ -87,7 +87,7 @@ sudo vi /opt/zabbix/etc/zabbix_agent2.conf
 ```ini
 Server=192.168.10.40
 ServerActive=192.168.10.40
-Hostname=<WEB01, LOG01, or LOG02 — whichever this VM actually is>
+Hostname=<WEB01_10.21, LOG01_10.50, or LOG02_10.51 — whichever this VM actually is, matching this lab's `HOSTNAME_lastTwoOctets` convention used consistently across every monitoring tool (Zabbix, Wazuh, Prometheus, Elasticsearch, OpenSearch) rather than a bare hostname>
 ```
 
 Create a systemd unit — a source build has no packaged one, same as every other from-source service in this lab:
@@ -189,7 +189,7 @@ Edit `C:\Zabbix\agent2\zabbix_agent2.win.conf`:
 ```ini
 Server=192.168.10.40
 ServerActive=192.168.10.40
-Hostname=<WINAPP01, DC01, or CLIENT01 — whichever this VM actually is>
+Hostname=<WINAPP01_10.15, DC01_10.10, or CLIENT01 — whichever this VM actually is; CLIENT01 uses DHCP with no fixed IP, so it stays as plain `CLIENT01` without the `_lastTwoOctets` suffix the other VMs use>
 ```
 
 Register it as a Windows service (a from-source build has no installer to do this automatically, unlike the MSI package):
@@ -214,7 +214,7 @@ Get-Service "Zabbix Agent 2"
 
 On **MON01**, in the Zabbix Frontend (`https://zabbix.corp-lab.com.vn:8443`):
 
-1. **Data collection → Hosts → Create host** for each of the six VMs in the table above.
+1. **Data collection → Hosts → Create host** for each of the six VMs in the table above. **Host name** must exactly match each agent's own `Hostname=` config value — `WEB01_10.21`, `WINAPP01_10.15`, `DC01_10.10`, `LOG01_10.50`, `LOG02_10.51`, and `CLIENT01` (no suffix — CLIENT01 uses DHCP with no fixed IP, so the `_lastTwoOctets` convention doesn't cleanly apply there; confirm its actual current lease with `ipconfig /all` if in doubt). A mismatch here is the single most common reason an agent shows as unreachable despite the service itself running fine — Zabbix matches purely on this name string, not IP address.
 2. **Host groups**: assign `Servers` for WEB01/WINAPP01/DC01/LOG01/LOG02, `Workstations` for CLIENT01 — matching the same grouping already established for WSUS client-side targeting in [`10`](./10-gpo-wsus-client-policy.md).
 3. **Interfaces**: **Agent**, IP address matching each VM's static IP, port `10050`.
 4. **Templates**: link **Linux by Zabbix agent** for the Linux VMs, **Windows by Zabbix agent** for the Windows VMs.
@@ -230,8 +230,9 @@ Run on **WEB01**, **LOG01**, and **LOG02**:
 
 ```bash
 sudo rpm --import https://packages.wazuh.com/key/GPG-KEY-WAZUH
-sudo dnf install -y https://packages.wazuh.com/4.x/yum/wazuh-agent-4.14.6-1.x86_64.rpm
+sudo WAZUH_MANAGER="192.168.10.40" WAZUH_AGENT_NAME="<WEB01_10.21, LOG01_10.50, or LOG02_10.51 — whichever this VM actually is>" dnf install -y https://packages.wazuh.com/4.x/yum/wazuh-agent-4.14.6-1.x86_64.rpm
 ```
+Setting `WAZUH_AGENT_NAME` here matters — without it, Wazuh defaults to the endpoint's bare OS hostname (`WEB01`, not `WEB01_10.21`), which would leave this one tool inconsistent with the `HOSTNAME_lastTwoOctets` naming every other monitoring tool in this lab uses (Zabbix, Prometheus, Elasticsearch, OpenSearch).
 
 Configure it to point at MON01:
 ```bash
@@ -256,10 +257,11 @@ sudo firewall-cmd --reload
 Run on **WINAPP01**, **DC01**, and **CLIENT01**:
 
 1. Download the Windows agent MSI from `https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.6-1.msi`.
-2. Install:
+2. Install, setting `WAZUH_AGENT_NAME` explicitly — same reasoning as [Step 4](#step-4--wazuh-agent-on-linux-vms), otherwise Wazuh defaults to the bare OS hostname instead of this lab's `HOSTNAME_lastTwoOctets` convention:
 ```powershell
-msiexec /i wazuh-agent-4.14.6-1.msi /q WAZUH_MANAGER="192.168.10.40"
+msiexec /i wazuh-agent-4.14.6-1.msi /q WAZUH_MANAGER="192.168.10.40" WAZUH_AGENT_NAME="WINAPP01_10.15"
 ```
+(Substitute `DC01_10.10` or `CLIENT01` — no suffix, since it has no fixed IP — for the other two VMs.)
 3. Start the service:
 ```powershell
 NET START WazuhSvc
@@ -580,29 +582,31 @@ Extend the `node_exporter` job (created in [`14`'s Step 3](./14-mon01-prometheus
     static_configs:
       - targets: ['localhost:9100']
         labels:
-          instance: 'mon01'
+          instance: 'mon01_10.40'
       - targets: ['192.168.10.21:9100']
         labels:
-          instance: 'web01'
+          instance: 'web01_10.21'
       - targets: ['192.168.10.50:9100']
         labels:
-          instance: 'log01'
+          instance: 'log01_10.50'
       - targets: ['192.168.10.51:9100']
         labels:
-          instance: 'log02'
+          instance: 'log02_10.51'
 
   - job_name: 'windows_exporter'
     static_configs:
       - targets: ['192.168.10.15:9182']
         labels:
-          instance: 'winapp01'
+          instance: 'winapp01_10.15'
       - targets: ['192.168.10.10:9182']
         labels:
-          instance: 'dc01'
+          instance: 'dc01_10.10'
       - targets: ['192.168.10.100:9182']
         labels:
           instance: 'client01'
 ```
+Every `instance` label follows this lab's `HOSTNAME_lastTwoOctets` convention (matching the VMware Library names used throughout, and the same rename already applied to MON01's own `instance` label in [`14`'s Step 3](./14-mon01-prometheus-grafana-monitoring.md#step-3--configure-prometheus)) — except **CLIENT01**, which stays as a plain hostname with no suffix, since it has no fixed IP to derive one from.
+
 > CLIENT01's IP above (`192.168.10.100`) is the first address in the DHCP pool from [`02`](./02-network-architecture-planning.md) — CLIENT01 doesn't have a static IP, so confirm its actual current lease (`ipconfig /all` on CLIENT01) before trusting this value, since DHCP can hand out a different address within the pool.
 
 ```bash

@@ -226,7 +226,7 @@ sudo chown opensearch:opensearch /mnt/data/opensearch
 ```bash
 sudo tee /opt/opensearch/config/opensearch.yml << 'EOF'
 cluster.name: corp-lab-logs-alt
-node.name: log02
+node.name: log02_10.51
 path.data: /mnt/data/opensearch
 path.logs: /var/log/opensearch
 network.host: 192.168.10.51
@@ -434,7 +434,7 @@ sudo openssl req -x509 -nodes -days 825 \
 sudo tee /opt/opensearch-dashboards/config/opensearch_dashboards.yml << 'EOF'
 server.host: "0.0.0.0"
 server.port: 5601
-server.name: "log02"
+server.name: "log02_10.51"
 server.ssl.enabled: true
 server.ssl.certificate: /opt/opensearch-dashboards/certs/dashboards.crt
 server.ssl.key: /opt/opensearch-dashboards/certs/dashboards.key

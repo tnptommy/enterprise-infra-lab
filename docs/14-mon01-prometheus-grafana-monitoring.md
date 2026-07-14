@@ -157,7 +157,7 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9100']
         labels:
-          instance: 'mon01'
+          instance: 'mon01_10.40'
 EOF
 
 sudo chown -R prometheus:prometheus /etc/prometheus

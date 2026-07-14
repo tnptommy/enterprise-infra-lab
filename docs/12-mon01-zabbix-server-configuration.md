@@ -400,7 +400,7 @@ Confirm/set:
 ```ini
 Server=127.0.0.1
 ServerActive=127.0.0.1
-Hostname=MON01
+Hostname=MON01_10.40
 ```
 
 Fix ownership so the `zabbix` user (created in Step 9) can read its own configs and write logs/PID files:
@@ -755,7 +755,7 @@ From here, Zabbix Frontend is reachable **only** at `https://zabbix.corp-lab.com
 Full agent rollout to every other VM in this lab happens in [`17-agent-deployment-all-vms.md`](./17-agent-deployment-all-vms.md) — this step just gets one working example end-to-end using the agent already built on MON01 itself in Step 11.
 
 1. **Data collection → Hosts → Create host**.
-2. **Host name**: `MON01`.
+2. **Host name**: `MON01_10.40` — must match the agent's `Hostname=` setting exactly, or Zabbix reports "unknown host" and the agent never connects.
 3. **Host groups**: create a new group `Monitoring Servers`.
 4. **Interfaces**: click **Add** next to Agent → IP address `127.0.0.1` (or `192.168.10.40`), port `10050`.
 5. **Templates** tab → **Add** → search for and select **Linux by Zabbix agent**.
