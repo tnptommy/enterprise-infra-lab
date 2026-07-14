@@ -69,8 +69,7 @@ cd zabbix-8.0.0
   --prefix=/opt/zabbix \
   --enable-agent2 \
   --with-openssl \
-  --with-libpcre2 \
-  --enable-ipv6
+  --with-libpcre2
 
 make -j$(nproc)
 sudo make install
