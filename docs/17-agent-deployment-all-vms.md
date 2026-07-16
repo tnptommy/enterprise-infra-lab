@@ -348,12 +348,17 @@ Configure a dedicated input/output specifically for Suricata → Logstash, separ
 ```bash
 sudo tee /etc/filebeat/filebeat.yml << 'EOF'
 filebeat.inputs:
-  - type: log
+  - type: filestream
+    id: suricata-eve
     paths:
       - /var/log/suricata/eve.json
-    json.keys_under_root: true
-    json.add_error_key: true
-    tags: ["suricata"]
+    parsers:
+      - ndjson:
+          keys_under_root: true
+          add_error_key: true
+    fields:
+      log_type: suricata
+    fields_under_root: true
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
@@ -387,11 +392,17 @@ notepad "C:\Program Files\Winlogbeat\winlogbeat.yml"
 ```yaml
 winlogbeat.event_logs:
   - name: Application
-    tags: ["winlogbeat"]
+    fields:
+      log_type: winlogbeat
+    fields_under_root: true
   - name: System
-    tags: ["winlogbeat"]
+    fields:
+      log_type: winlogbeat
+    fields_under_root: true
   - name: Security
-    tags: ["winlogbeat"]
+    fields:
+      log_type: winlogbeat
+    fields_under_root: true
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
@@ -430,10 +441,13 @@ notepad "C:\Program Files\Filebeat\filebeat.yml"
 ```
 ```yaml
 filebeat.inputs:
-  - type: log
+  - type: filestream
+    id: iis-w3svc1
     paths:
       - C:\inetpub\logs\LogFiles\W3SVC1\*.log
-    tags: ["iis"]
+    fields:
+      log_type: iis
+    fields_under_root: true
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
@@ -492,7 +506,9 @@ metricbeat.config.modules:
   path: ${path.config}/modules.d/*.yml
   reload.enabled: false
 
-tags: ["metricbeat"]
+fields:
+  log_type: metricbeat
+fields_under_root: true
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
@@ -513,7 +529,9 @@ packetbeat.protocols:
   - type: mysql
     ports: [3306]
 
-tags: ["packetbeat"]
+fields:
+  log_type: packetbeat
+fields_under_root: true
 
 output.logstash:
   hosts: ["192.168.10.50:5044"]
