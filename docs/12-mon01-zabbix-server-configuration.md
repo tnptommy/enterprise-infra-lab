@@ -909,7 +909,7 @@ The `./configure` flags in [Step 11](#step-11--download-and-configure-zabbix-sou
 Support for HTTP agent was not compiled in: missing cURL library
 ```
 
-If you plan to build the dashboard widgets in [`21-monitoring-dashboards.md`](./21-monitoring-dashboards.md) (or any future HTTP agent item), rebuild the server once with libcurl support:
+If you plan to build any dashboard widget backed by an HTTP agent item (e.g. a widget that polls `problem.get` via the Zabbix API, or checks Elasticsearch/OpenSearch cluster health), rebuild the server once with libcurl support:
 
 ```bash
 sudo dnf install -y libcurl-devel
