@@ -29,6 +29,7 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 - [Step 3 — Confirm Zabbix host groups populated correctly](#step-3--confirm-zabbix-host-groups-populated-correctly)
 - [Step 4 — Wazuh Agent on Linux VMs](#step-4--wazuh-agent-on-linux-vms)
 - [Step 5 — Wazuh Agent on Windows VMs](#step-5--wazuh-agent-on-windows-vms)
+- [Assigning agents to FIM host groups](#assigning-agents-to-fim-host-groups)
 - [Step 6 — Complete the Suricata-to-Wazuh integration](#step-6--complete-the-suricata-to-wazuh-integration)
 - [Step 7 — Complete the Suricata-to-Logstash integration](#step-7--complete-the-suricata-to-logstash-integration)
 - [Step 8 — Winlogbeat on Windows VMs](#step-8--winlogbeat-on-windows-vms)
@@ -38,6 +39,7 @@ MON01 already monitors itself (Zabbix Agent 2 from [`12`](./12-mon01-zabbix-serv
 - [Step 12 — windows_exporter on Windows VMs](#step-12--windows_exporter-on-windows-vms)
 - [Step 13 — Update Prometheus scrape targets](#step-13--update-prometheus-scrape-targets)
 - [Step 14 — Create Kibana Data Views](#step-14--create-kibana-data-views)
+- [Enabling built-in Beats dashboards in Kibana](#enabling-built-in-beats-dashboards-in-kibana)
 - [Step 15 — Final verification checklist](#step-15--final-verification-checklist)
 - [Next step](#next-step)
 
@@ -294,6 +296,118 @@ NET START WazuhSvc
 ```powershell
 New-NetFirewallRule -DisplayName "Wazuh Agent" -Direction Outbound -Protocol TCP -RemotePort 1514,1515 -Action Allow
 ```
+
+---
+
+## Assigning agents to FIM host groups
+
+The local FIM ruleset configured on MON01 itself in [`13`'s Step 12](./13-mon01-wazuh-manager-configuration.md#step-12--configure-file-integrity-monitoring-fim) only covers the Manager's own filesystem. Now that Wazuh Agents exist on every other VM ([Step 4](#step-4--wazuh-agent-on-linux-vms), [Step 5](#step-5--wazuh-agent-on-windows-vms)), push a tiered FIM config out to them — split into two **agent groups**, since Linux and Windows watch different paths and Windows additionally supports registry monitoring.
+
+On **MON01**:
+
+```bash
+sudo /var/ossec/bin/agent_groups -a -g linux-servers
+sudo /var/ossec/bin/agent_groups -a -g windows-servers
+```
+
+Assign each agent (substitute the actual agent IDs — list them first with `sudo /var/ossec/bin/agent_control -l`):
+
+```bash
+sudo /var/ossec/bin/agent_groups -a -i <WEB01_ID> -g linux-servers
+sudo /var/ossec/bin/agent_groups -a -i <LOG01_ID> -g linux-servers
+sudo /var/ossec/bin/agent_groups -a -i <LOG02_ID> -g linux-servers
+
+sudo /var/ossec/bin/agent_groups -a -i <WINAPP01_ID> -g windows-servers
+sudo /var/ossec/bin/agent_groups -a -i <DC01_ID> -g windows-servers
+```
+(CLIENT01 is intentionally left in the `default` group — it's a test workstation, not infrastructure worth the same FIM depth.)
+
+Create the group configuration files directly (there is no `agent_groups -e` edit flag in this version — write the file, then push it):
+
+```bash
+sudo tee /var/ossec/etc/shared/linux-servers/agent.conf << 'EOF'
+<agent_config>
+  <syscheck>
+    <disabled>no</disabled>
+    <frequency>43200</frequency>
+
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc</directories>
+    <directories realtime="yes" report_changes="yes" whodata="yes">/etc/passwd</directories>
+    <directories realtime="yes" report_changes="yes" whodata="yes">/etc/shadow</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/ssh/sshd_config</directories>
+
+    <directories check_all="yes">/usr/bin</directories>
+    <directories check_all="yes">/usr/sbin</directories>
+    <directories check_all="yes">/bin</directories>
+    <directories check_all="yes">/sbin</directories>
+
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/nginx</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/httpd</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/my.cnf.d</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/elasticsearch</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/logstash</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">/etc/opensearch</directories>
+
+    <ignore>/var/log</ignore>
+    <ignore>/tmp</ignore>
+    <ignore type="sregex">.log$</ignore>
+    <ignore type="sregex">.swp$</ignore>
+
+    <alert_new_files>yes</alert_new_files>
+  </syscheck>
+</agent_config>
+EOF
+
+sudo tee /var/ossec/etc/shared/windows-servers/agent.conf << 'EOF'
+<agent_config>
+  <syscheck>
+    <disabled>no</disabled>
+    <frequency>43200</frequency>
+
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\Windows\System32\drivers\etc</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\Windows\System32\config</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\Windows\System32\inetsrv\config</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\inetpub\wwwroot</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\Windows\NTDS</directories>
+    <directories realtime="yes" report_changes="yes" check_all="yes">C:\Windows\System32\dns</directories>
+
+    <directories check_all="yes">C:\Windows\System32</directories>
+    <directories check_all="yes">C:\Program Files</directories>
+    <directories check_all="yes">C:\Program Files (x86)</directories>
+
+    <ignore>C:\Windows\System32\LogFiles</ignore>
+    <ignore>C:\Windows\Temp</ignore>
+    <ignore type="sregex">.log$</ignore>
+
+    <windows_registry>HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run</windows_registry>
+    <windows_registry>HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services</windows_registry>
+
+    <alert_new_files>yes</alert_new_files>
+  </syscheck>
+</agent_config>
+EOF
+```
+
+Restart the Manager to load the new group configs, then restart each agent to pick them up:
+```bash
+sudo systemctl restart wazuh-manager
+sudo /var/ossec/bin/agent_control -R -u <agent_id>   # repeat for every agent above
+```
+
+**Verify** — confirm a group actually took effect (not just that the assignment command succeeded):
+```bash
+sudo /var/ossec/bin/agent_control -i <WEB01_ID> | grep -i syscheck
+```
+Then in **Wazuh Dashboard → Threat intelligence → File Integrity Monitoring**, filter by agent and confirm the `Inventory` tab shows a recent scan, and that a test change (`sudo touch /etc/test-fim.txt` on a Linux agent, or writing a file under `C:\inetpub\wwwroot` on WINAPP01) appears under `Events` within seconds.
+
+> **A gotcha worth knowing about, not just fixing if it happens:** if an agent's connection to the Manager drops for an extended period (for example, during a Manager restart that hangs — see the troubleshooting note in [`13`](./13-mon01-wazuh-manager-configuration.md)), the agent can silently re-enroll under a **new agent ID** on reconnect, sometimes even dropping the `_lastTwoOctets` suffix from its name in the process (reverting to the bare OS hostname). The old ID is left behind showing `Never connected` or `Disconnected`. If `agent_control -l` ever shows a host appearing twice, or a name missing its usual suffix, remove the stale ID (`manage_agents -r <old_id>`) and re-enroll the agent under the correct name explicitly:
+> ```bash
+> sudo systemctl stop wazuh-agent
+> sudo rm -f /var/ossec/etc/client.keys
+> sudo /var/ossec/bin/agent-auth -m 192.168.10.40 -A WEB01_10.21   # correct name for this VM
+> sudo systemctl start wazuh-agent
+> ```
+> Re-enrolling always produces a new agent ID, which means the FIM group assignment above has to be repeated for that agent afterward — group membership does not carry over.
 
 ---
 
@@ -687,6 +801,90 @@ Verify all five are actually browsable:
 > ```bash
 > curl -k -u elastic:'Password-From-13' "https://192.168.10.50:9200/_cat/indices?v" | grep -E "suricata|winlogbeat|iis|metricbeat|packetbeat"
 > ```
+
+---
+
+## Enabling built-in Beats dashboards in Kibana
+
+Each Beat ships pre-built Kibana dashboards for its own module (Metricbeat's "System" overview, Packetbeat's protocol/flow views, and so on) — these can be loaded automatically instead of building every visualization by hand. This only needs to be run once per Beat, from the VM the Beat is installed on.
+
+**Two things are required in each Beat's config that aren't there by default in this lab's setup**, because [Step 7](#step-7--complete-the-suricata-to-logstash-integration) through [Step 10](#step-10--metricbeat-and-packetbeat-on-web01) only configured `output.logstash` — the `setup` command needs to reach Kibana and Elasticsearch **directly**, since dashboard/index-pattern creation doesn't flow through Logstash:
+
+```yaml
+setup.kibana:
+  host: "https://192.168.10.50:5601"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+
+setup.dashboards.enabled: true
+
+setup.elasticsearch:
+  host: "https://192.168.10.50:9200"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+```
+
+> **The username/password under `setup.kibana` is not optional**, even though `/api/status` appears reachable without it — Kibana returns a stripped-down response with no `version` field to unauthenticated requests, and Beats fails with a confusing `passed version is not semver` error rather than an authentication error. Confirm which case you're in before assuming Kibana itself is broken:
+> ```bash
+> curl -k https://192.168.10.50:5601/api/status                                    # unauthenticated — expect a minimal response
+> curl -k -u elastic:'<password>' https://192.168.10.50:5601/api/status            # authenticated — expect a full response including "version"
+> ```
+
+On **WEB01**, append the block above to each of the three `.yml` files, then run:
+```bash
+for beat in filebeat metricbeat packetbeat; do
+  sudo tee -a /etc/${beat}/${beat}.yml << 'EOF'
+
+setup.kibana:
+  host: "https://192.168.10.50:5601"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+
+setup.dashboards.enabled: true
+
+setup.elasticsearch:
+  host: "https://192.168.10.50:9200"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+EOF
+done
+
+sudo filebeat setup --dashboards
+sudo metricbeat setup --dashboards
+sudo packetbeat setup --dashboards
+```
+
+On **WINAPP01** and **DC01** (Winlogbeat; WINAPP01 additionally has Filebeat for IIS), the same block goes into `winlogbeat.yml` (and `filebeat.yml` on WINAPP01 only), via PowerShell:
+```powershell
+$config = @"
+
+setup.kibana:
+  host: "https://192.168.10.50:5601"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+
+setup.dashboards.enabled: true
+
+setup.elasticsearch:
+  host: "https://192.168.10.50:9200"
+  username: "elastic"
+  password: "<elastic-superuser-password-from-13>"
+  ssl.verification_mode: none
+"@
+Add-Content -Path "C:\Program Files\Winlogbeat\winlogbeat.yml" -Value $config
+
+cd "C:\Program Files\Winlogbeat"
+.\winlogbeat.exe setup --dashboards
+```
+
+(CLIENT01 has no Beats installed per [Step 4](#step-4--wazuh-agent-on-linux-vms)/[Step 5](#step-5--wazuh-agent-on-windows-vms) — nothing to do there.)
+
+Each command prints `Loaded dashboards` on success. Verify in **Kibana → Dashboards** — look for entries prefixed `[Metricbeat]`, `[Packetbeat]`, `[Winlogbeat]`, `[Filebeat]`. If a dashboard loads but shows no data, the index pattern baked into the pre-built dashboard (e.g. `metricbeat-*`) may not match this lab's actual index naming if it was customized further downstream — check the dashboard's own Data View setting against the indices confirmed in [Step 14](#step-14--create-kibana-data-views).
 
 ---
 

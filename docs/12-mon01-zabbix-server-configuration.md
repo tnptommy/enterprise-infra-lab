@@ -41,6 +41,7 @@ This document clones the Rocky Linux 10 [Golden Baseline](./05-golden-baseline-r
 - [Step 23 — Build a basic dashboard](#step-23--build-a-basic-dashboard)
 - [Step 24 — Logrotate for Zabbix Server and Apache](#step-24--logrotate-for-zabbix-server-and-apache)
 - [Step 25 — Final verification checklist](#step-25--final-verification-checklist)
+- [Troubleshooting — Enabling HTTP agent items (rebuild with libcurl)](#troubleshooting--enabling-http-agent-items-rebuild-with-libcurl)
 - [Next step](#next-step)
 
 ---
@@ -897,6 +898,49 @@ nslookup 192.168.10.40
 8. **Credentials are stored, not memorized** — confirm the local sudo user password, MariaDB root password, `zabbix` DB user password, and Zabbix Frontend Admin password are all saved in [KeePass](./03-remote-access-tooling-setup.md#keepass) under the `MON01_10.40` group.
 
 If all eight checks pass, Zabbix is ready on MON01.
+
+---
+
+## Troubleshooting — Enabling HTTP agent items (rebuild with libcurl)
+
+The `./configure` flags in [Step 11](#step-11--download-and-configure-zabbix-source) do not include `--with-libcurl`. This is fine for every item type used up through this document (Zabbix agent checks, internal checks, SNMP), but it silently breaks **HTTP agent** items — the item type needed later for dashboard widgets that poll an API directly (e.g. counting active problems via `problem.get`, or checking Elasticsearch/OpenSearch cluster health from a widget). Any HTTP agent item created without this flag shows `Not supported` in Latest data, with the real reason only visible via the item's info icon or **Test** button:
+
+```
+Support for HTTP agent was not compiled in: missing cURL library
+```
+
+If you plan to build the dashboard widgets in [`21-monitoring-dashboards.md`](./21-monitoring-dashboards.md) (or any future HTTP agent item), rebuild the server once with libcurl support:
+
+```bash
+sudo dnf install -y libcurl-devel
+
+cd ~/zabbix-8.0.0   # re-download and extract if this was already cleaned up
+
+./configure \
+  --prefix=/opt/zabbix \
+  --enable-server \
+  --enable-agent2 \
+  --with-mysql \
+  --with-openssl \
+  --with-libpcre2 \
+  --with-libevent \
+  --with-net-snmp \
+  --with-libcurl \
+  --enable-ipv6
+
+make -j$(nproc)
+sudo systemctl stop zabbix-server
+sudo make install
+sudo systemctl start zabbix-server
+sudo systemctl restart zabbix-agent2
+```
+
+This rebuild is safe to run at any time — it only replaces the compiled binaries, not the database, not `zabbix_server.conf` (existing config files are never overwritten by `make install`), and not any host/item/trigger/dashboard already configured. The only side effect is a short monitoring gap (a few minutes, while `zabbix-server` is stopped for the reinstall) and a required agent2 restart on MON01 itself, since `--enable-agent2` rebuilds that binary too.
+
+Confirm the rebuild picked up libcurl:
+```bash
+/opt/zabbix/sbin/zabbix_server --help | grep -i curl
+```
 
 ---
 
